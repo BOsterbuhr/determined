@@ -29,6 +29,7 @@ type ExperimentConfigV0 struct {
 	RawHyperparameters          HyperparametersV0           `json:"hyperparameters"`
 	RawLabels                   LabelsV0                    `json:"labels"`
 	RawLogPolicies              LogPoliciesConfigV0         `json:"log_policies"`
+	RawLogRetention             *Duration                   `json:"log_retention"`
 	RawMaxRestarts              *int                        `json:"max_restarts"`
 	RawMinCheckpointPeriod      *LengthV0                   `json:"min_checkpoint_period"`
 	RawMinValidationPeriod      *LengthV0                   `json:"min_validation_period"`

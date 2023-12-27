@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/determined-ai/determined/master/pkg/schemas/expconf"
 	"github.com/determined-ai/determined/master/pkg/union"
 )
 
@@ -17,6 +18,13 @@ import (
 type LoggingConfig struct {
 	DefaultLoggingConfig *DefaultLoggingConfig `union:"type,default" json:"-"`
 	ElasticLoggingConfig *ElasticLoggingConfig `union:"type,elastic" json:"-"`
+	Retention            *LogRetentionPolicy   `json:"retention"`
+}
+
+// LogRetentionPolicy configures the default log retention policy for trials and tasks.
+type LogRetentionPolicy struct {
+	Duration        expconf.Duration `json:"duration"`
+	CleanupSchedule *string          `json:"cleanup_schedule"`
 }
 
 // Resolve resolves the parts of the TaskContainerDefaultsConfig that must be evaluated on
