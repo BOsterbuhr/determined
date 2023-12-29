@@ -232,3 +232,28 @@ func (a *apiServer) ResourceAllocationAggregated(
 
 	return a.m.fetchAggregatedResourceAllocation(req)
 }
+
+func (a *apiServer) CleanupLogs(
+	ctx context.Context, req *apiv1.CleanupLogsRequest,
+) (*apiv1.CleanupLogsResponse, error) {
+	u, _, err := grpcutil.GetUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	permErr, err := cluster.AuthZProvider.Get().CanUpdateMasterConfig(ctx, u)
+	if err != nil {
+		return nil, err
+	} else if permErr != nil {
+		return nil, permErr
+	}
+
+	resp := &apiv1.CleanupLogsResponse{}
+	var defaultLogRetention int16 = -1
+	if a.m.taskSpec.LogRetention != nil {
+		defaultLogRetention = *a.m.taskSpec.LogRetention
+	}
+
+	resp.Rows, err = a.m.db.DeleteExpiredTaskLogs(defaultLogRetention)
+	return resp, err
+}

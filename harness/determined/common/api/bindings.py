@@ -2100,6 +2100,29 @@ class v1CheckpointsRemoveFilesRequest(Printable):
         }
         return out
 
+class v1CleanupLogsResponse(Printable):
+    """Response to CleanupLogsRequest."""
+
+    def __init__(
+        self,
+        *,
+        rows: str,
+    ):
+        self.rows = rows
+
+    @classmethod
+    def from_json(cls, obj: Json) -> "v1CleanupLogsResponse":
+        kwargs: "typing.Dict[str, typing.Any]" = {
+            "rows": obj["rows"],
+        }
+        return cls(**kwargs)
+
+    def to_json(self, omit_unset: bool = False) -> typing.Dict[str, typing.Any]:
+        out: "typing.Dict[str, typing.Any]" = {
+            "rows": self.rows,
+        }
+        return out
+
 class v1CloseTrialOperation(Printable):
     """Close a trial with given ID."""
     requestId: "typing.Optional[str]" = None
@@ -15516,6 +15539,25 @@ def post_CheckpointsRemoveFiles(
     if _resp.status_code == 200:
         return
     raise APIHttpError("post_CheckpointsRemoveFiles", _resp)
+
+def post_CleanupLogs(
+    session: "api.Session",
+) -> "v1CleanupLogsResponse":
+    """Cleanup task logs according to the retention policy."""
+    _params = None
+    _resp = session._do_request(
+        method="POST",
+        path="/api/v1/cleanup_logs",
+        params=_params,
+        json=None,
+        data=None,
+        headers=None,
+        timeout=None,
+        stream=False,
+    )
+    if _resp.status_code == 200:
+        return v1CleanupLogsResponse.from_json(_resp.json())
+    raise APIHttpError("post_CleanupLogs", _resp)
 
 def get_CompareTrials(
     session: "api.Session",
