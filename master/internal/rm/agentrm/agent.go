@@ -873,6 +873,12 @@ func (a *agent) socketDisconnected() {
 	timer := time.AfterFunc(a.agentReconnectWait, a.HandleReconnectTimeout)
 	a.reconnectTimers = append(a.reconnectTimers, timer)
 
+	defer a.notifyListeners()
+
+	if a.agentState == nil {
+		return
+	}
+
 	a.preDisconnectEnabled = a.agentState.enabled
 	a.preDisconnectDraining = a.agentState.draining
 	// Mark ourselves as draining to avoid action on ourselves while we recover. While the
@@ -883,7 +889,6 @@ func (a *agent) socketDisconnected() {
 		enabled: &a.agentState.enabled,
 		drain:   &a.agentState.draining,
 	})
-	a.notifyListeners()
 }
 
 func (a *agent) HandleReconnectTimeout() {
