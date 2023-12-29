@@ -836,7 +836,12 @@ var (
             }
         },
         "log_retention": {
-            "type": "integer",
+            "type": [
+                "integer",
+                "null"
+            ],
+            "minimum": -1,
+            "maximum": 32767,
             "default": null
         },
         "max_restarts": {
