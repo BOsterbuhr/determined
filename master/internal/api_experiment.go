@@ -1706,6 +1706,10 @@ func (a *apiServer) CreateExperiment(
 			return nil, status.Errorf(codes.PermissionDenied, err.Error())
 		}
 	}
+	log.WithFields(log.Fields{
+		"taskSpec.LogRetention":   fmt.Sprintf("%+v", *taskSpec.LogRetention),
+		"m.taskSpec.LogRetention": fmt.Sprintf("%+v", *a.m.taskSpec.LogRetention),
+	}).Debug("creating experiment")
 
 	e, launchWarnings, err := newExperiment(a.m, dbExp, activeConfig, taskSpec)
 	if err != nil {
@@ -2738,11 +2742,12 @@ func (a *apiServer) createTrialTx(
 		0)
 
 	if err := a.m.db.AddTask(&model.Task{
-		TaskID:     taskID,
-		TaskType:   model.TaskTypeTrial,
-		StartTime:  time.Now(),
-		JobID:      nil,
-		LogVersion: model.CurrentTaskLogVersion,
+		TaskID:       taskID,
+		TaskType:     model.TaskTypeTrial,
+		StartTime:    time.Now(),
+		JobID:        nil,
+		LogVersion:   model.CurrentTaskLogVersion,
+		LogRetention: a.m.taskSpec.LogRetention,
 	}); err != nil {
 		return nil, err
 	}

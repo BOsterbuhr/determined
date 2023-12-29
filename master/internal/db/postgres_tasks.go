@@ -56,12 +56,13 @@ func AddTask(ctx context.Context, t *model.Task) error {
 // AddTaskTx UPSERT's the existence of a task in a tx.
 func AddTaskTx(ctx context.Context, idb bun.IDB, t *model.Task) error {
 	_, err := idb.NewInsert().Model(t).
-		Column("task_id", "task_type", "start_time", "job_id", "log_version").
+		Column("task_id", "task_type", "start_time", "job_id", "log_version", "log_retention").
 		On("CONFLICT (task_id) DO UPDATE").
 		Set("task_type=EXCLUDED.task_type").
 		Set("start_time=EXCLUDED.start_time").
 		Set("job_id=EXCLUDED.job_id").
 		Set("log_version=EXCLUDED.log_version").
+		Set("log_retention=EXCLUDED.log_retention").
 		Exec(ctx)
 	return MatchSentinelError(err)
 }
@@ -435,6 +436,28 @@ WHERE task_id = $1
 		return 0, err
 	}
 	return count, nil
+}
+
+// DeleteExpiredTaskLogs deletes task logs older than the log_retention time where defined and
+// non-negative. If log_retention is not defined the defaultLogRetention value is used instead.
+func (db *PgDB) DeleteExpiredTaskLogs(defaultLogRetention int16) (int64, error) {
+	r, err := db.sql.Exec(fmt.Sprintf(`
+WITH log_retention_tasks AS (
+	SELECT task_id, end_time, COALESCE(log_retention, %d) AS current_retention FROM tasks
+	WHERE task_id IN (SELECT DISTINCT task_id FROM task_logs) 
+		AND end_time IS NOT NULL
+)
+DELETE FROM task_logs
+WHERE task_id IN (
+	SELECT task_id FROM log_retention_tasks
+	WHERE current_retention >= 0
+		AND end_time < ( current_date - current_retention ) + current_time
+)
+`, defaultLogRetention))
+	if err != nil {
+		return 0, errors.Wrap(err, "error deleting expired task logs")
+	}
+	return r.RowsAffected()
 }
 
 // RecordTaskStats record stats for tasks.

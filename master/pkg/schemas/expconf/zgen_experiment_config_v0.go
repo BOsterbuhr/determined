@@ -108,11 +108,11 @@ func (e *ExperimentConfigV0) SetLogPolicies(val LogPoliciesConfigV0) {
 	e.RawLogPolicies = val
 }
 
-func (e ExperimentConfigV0) LogRetention() *Duration {
+func (e ExperimentConfigV0) LogRetention() *int16 {
 	return e.RawLogRetention
 }
 
-func (e *ExperimentConfigV0) SetLogRetention(val *Duration) {
+func (e *ExperimentConfigV0) SetLogRetention(val *int16) {
 	e.RawLogRetention = val
 }
 

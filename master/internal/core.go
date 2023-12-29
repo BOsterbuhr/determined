@@ -48,6 +48,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/grpcutil"
 	"github.com/determined-ai/determined/master/internal/job/jobservice"
 	"github.com/determined-ai/determined/master/internal/logpattern"
+	"github.com/determined-ai/determined/master/internal/logretention"
 	"github.com/determined-ai/determined/master/internal/plugin/sso"
 	"github.com/determined-ai/determined/master/internal/portregistry"
 	"github.com/determined-ai/determined/master/internal/prom"
@@ -929,8 +930,17 @@ func (m *Master) Run(ctx context.Context, gRPCLogInitDone chan struct{}) error {
 		SegmentEnabled:        m.config.Telemetry.Enabled && m.config.Telemetry.SegmentMasterKey != "",
 		SegmentAPIKey:         m.config.Telemetry.SegmentMasterKey,
 	}
+	if m.config.Logging.Retention != nil {
+		m.taskSpec.LogRetention = m.config.Logging.Retention.Duration
+	}
 
 	go m.cleanUpExperimentSnapshots()
+
+	if m.config.Logging.Retention != nil {
+		if err := logretention.Schedule(*m.config.Logging.Retention, m.db); err != nil {
+			return errors.Wrap(err, "initializing log retention")
+		}
+	}
 
 	switch {
 	case m.config.Logging.DefaultLoggingConfig != nil:

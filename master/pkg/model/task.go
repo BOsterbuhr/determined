@@ -14,7 +14,6 @@ import (
 
 	"github.com/determined-ai/determined/master/pkg/cproto"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
-	"github.com/determined-ai/determined/master/pkg/schemas/expconf"
 	"github.com/determined-ai/determined/master/pkg/tasklog"
 	"github.com/determined-ai/determined/proto/pkg/apiv1"
 	"github.com/determined-ai/determined/proto/pkg/logv1"
@@ -75,8 +74,9 @@ type Task struct {
 	StartTime time.Time  `db:"start_time"`
 	EndTime   *time.Time `db:"end_time"`
 	// LogVersion indicates how the logs were stored.
-	LogVersion   TaskLogVersion    `db:"log_version"`
-	LogRetention *expconf.Duration `db:"log_retention"`
+	LogVersion TaskLogVersion `db:"log_version"`
+	// LogRetention is the number of days to retain logs for.
+	LogRetention *int16 `db:"log_retention"`
 
 	// Relations.
 	Job *Job `bun:"rel:belongs-to,join:job_id=job_id"`

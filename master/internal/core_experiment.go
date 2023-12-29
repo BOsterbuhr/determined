@@ -314,6 +314,10 @@ func (m *Master) parseCreateExperiment(req *apiv1.CreateExperimentRequest, owner
 	if defaulted.RawEntrypoint == nil && (req.Unmanaged == nil || !*req.Unmanaged) {
 		return nil, config, nil, nil, errors.New("managed experiments require entrypoint")
 	}
+	// Merge log retention into the taskSpec.
+	if config.RawLogRetention != nil {
+		taskSpec.LogRetention = config.RawLogRetention
+	}
 
 	// Merge in workspace's checkpoint storage into the conifg.
 	w := &model.Workspace{}
@@ -324,20 +328,12 @@ func (m *Master) parseCreateExperiment(req *apiv1.CreateExperimentRequest, owner
 		return nil, config, nil, nil, err
 	}
 	config.RawCheckpointStorage = schemas.Merge(
-		config.RawCheckpointStorage, w.CheckpointStorageConfig,
-	)
+		config.RawCheckpointStorage, w.CheckpointStorageConfig)
 
 	// Merge in the master's checkpoint storage into the config.
 	config.RawCheckpointStorage = schemas.Merge(
 		config.RawCheckpointStorage, &m.config.CheckpointStorage,
 	)
-
-	// Merge the log retention policy into the config.
-	if m.config.Logging.Retention != nil {
-		config.RawLogRetention = schemas.Merge(
-			config.RawLogRetention, &m.config.Logging.Retention.Duration,
-		)
-	}
 
 	// Lastly, apply any json-schema-defined defaults.
 	config = schemas.WithDefaults(config)

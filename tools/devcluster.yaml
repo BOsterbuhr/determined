@@ -48,6 +48,11 @@ stages:
           cache_dir: /tmp/determined-cache
         log:
           level: debug
+        logging:
+          retention: 
+            duration: 1
+            cleanup_on_start: true
+            cleanup_schedule: 1m
         enable_cors: true
         observability:
           enable_prometheus: true

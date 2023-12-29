@@ -10,7 +10,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/determined-ai/determined/master/pkg/schemas/expconf"
 	"github.com/determined-ai/determined/master/pkg/union"
 )
 
@@ -23,8 +22,12 @@ type LoggingConfig struct {
 
 // LogRetentionPolicy configures the default log retention policy for trials and tasks.
 type LogRetentionPolicy struct {
-	Duration        expconf.Duration `json:"duration"`
-	CleanupSchedule *string          `json:"cleanup_schedule"`
+	// Duration is the default number of days to retain logs for.
+	Duration *int16 `json:"duration"`
+	// CleanupSchedule is a time duration or cron expression interval to cleanup logs.
+	CleanupSchedule *string `json:"cleanup_schedule"`
+	// CleanupOnStart is whether to cleanup logs on startup.
+	CleanupOnStart *bool `json:"cleanup_on_start"`
 }
 
 // Resolve resolves the parts of the TaskContainerDefaultsConfig that must be evaluated on
@@ -52,6 +55,21 @@ func (c *LoggingConfig) UnmarshalJSON(data []byte) error {
 
 	type DefaultParser *LoggingConfig
 	return errors.Wrap(json.Unmarshal(data, DefaultParser(c)), "failed to parse logging options")
+}
+
+// MarshalJSON serializes LogRetentionPolicy.
+func (p LogRetentionPolicy) MarshalJSON() ([]byte, error) {
+	return union.Marshal(p)
+}
+
+// UnmarshalJSON deserializes LogRetentionPolicy.
+func (p *LogRetentionPolicy) UnmarshalJSON(data []byte) error {
+	if err := union.Unmarshal(data, p); err != nil {
+		return err
+	}
+
+	type DefaultParser *LogRetentionPolicy
+	return errors.Wrap(json.Unmarshal(data, DefaultParser(p)), "failed to parse logging options")
 }
 
 // DefaultLoggingConfig configures logging for tasks using HTTP to the master.
