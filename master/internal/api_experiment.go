@@ -1706,10 +1706,6 @@ func (a *apiServer) CreateExperiment(
 			return nil, status.Errorf(codes.PermissionDenied, err.Error())
 		}
 	}
-	log.WithFields(log.Fields{
-		"taskSpec.LogRetention":   fmt.Sprintf("%+v", *taskSpec.LogRetention),
-		"m.taskSpec.LogRetention": fmt.Sprintf("%+v", *a.m.taskSpec.LogRetention),
-	}).Debug("creating experiment")
 
 	e, launchWarnings, err := newExperiment(a.m, dbExp, activeConfig, taskSpec)
 	if err != nil {
