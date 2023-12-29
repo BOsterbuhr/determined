@@ -149,7 +149,6 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20211223182754-3ac035c7e7cb
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.63.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -167,6 +166,7 @@ require (
 	cloud.google.com/go/storage v1.10.0
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/docker/docker-credential-helpers v0.6.4
+	github.com/go-co-op/gocron/v2 v2.1.1
 	github.com/go-test/deep v1.1.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -184,7 +184,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
-	github.com/go-co-op/gocron/v2 v2.1.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/jonboulle/clockwork v0.4.0 // indirect
