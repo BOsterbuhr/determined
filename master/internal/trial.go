@@ -474,7 +474,6 @@ func (t *trial) maybeAllocateTask() error {
 }
 
 func (t *trial) addTask() error {
-	t.syslog.WithField("logRetention", *t.taskSpec.LogRetention).Debug("adding task to database")
 	return t.db.AddTask(&model.Task{
 		TaskID:       t.taskID,
 		TaskType:     model.TaskTypeTrial,

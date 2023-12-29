@@ -444,7 +444,7 @@ func (db *PgDB) DeleteExpiredTaskLogs(defaultLogRetention int16) (int64, error) 
 	r, err := db.sql.Exec(fmt.Sprintf(`
 WITH log_retention_tasks AS (
 	SELECT task_id, end_time, COALESCE(log_retention, %d) AS current_retention FROM tasks
-	WHERE task_id IN (SELECT DISTINCT task_id FROM task_logs) 
+	WHERE task_id IN (SELECT DISTINCT task_id FROM task_logs)
 		AND end_time IS NOT NULL
 )
 DELETE FROM task_logs
