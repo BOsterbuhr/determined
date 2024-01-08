@@ -209,7 +209,7 @@ func TestGetTaskContextDirectoryExperiment(t *testing.T) {
 func TestGetTaskContextDirectoryTask(t *testing.T) {
 	api, _, ctx := setupAPITest(t, nil)
 	task := &model.Task{TaskType: model.TaskTypeNotebook, TaskID: model.NewTaskID()}
-	require.NoError(t, api.m.db.AddTask(task))
+	require.NoError(t, db.AddTask(context.Background(), task))
 
 	expectedContextDirectory := []byte("expectedContextDirectory")
 	_, err := db.Bun().NewInsert().Model(&model.TaskContextDirectory{
@@ -539,7 +539,7 @@ func TestGetExperiments(t *testing.T) {
 	require.NoError(t, api.m.db.AddExperiment(exp0, activeConfig0))
 	for i := 0; i < 3; i++ {
 		task := &model.Task{TaskType: model.TaskTypeTrial, TaskID: model.NewTaskID()}
-		require.NoError(t, api.m.db.AddTask(task))
+		require.NoError(t, db.AddTask(context.Background(), task))
 		require.NoError(t, db.AddTrial(ctx, &model.Trial{
 			State:        model.PausedState,
 			ExperimentID: exp0.ID,
@@ -791,7 +791,7 @@ func TestSearchExperiments(t *testing.T) {
 	// Trial without validations doesn't cause issues.
 	noValidationsExp := createTestExpWithProjectID(t, api, curUser, projectIDInt)
 	task := &model.Task{TaskType: model.TaskTypeTrial, TaskID: model.NewTaskID()}
-	require.NoError(t, api.m.db.AddTask(task))
+	require.NoError(t, db.AddTask(context.Background(), task))
 	require.NoError(t, db.AddTrial(ctx, &model.Trial{
 		State:        model.PausedState,
 		ExperimentID: noValidationsExp.ID,

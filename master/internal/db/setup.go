@@ -98,8 +98,16 @@ func Setup(opts *config.DBConfig) (*PgDB, error) {
 		return nil, err
 	}
 
-	if err = db.initAllocationSessions(); err != nil {
+	if err = initAllocationSessions(context.Background()); err != nil {
 		return nil, err
 	}
 	return db, nil
+}
+
+// initAllocationSessions purges sessions of all closed allocations.
+func initAllocationSessions(ctx context.Context) error {
+	subq := Bun().NewSelect().Table("allocations").Column("allocation_id").
+		Where("start_time IS NOT NULL AND end_time IS NOT NULL")
+	_, err := Bun().NewDelete().Table("allocation_sessions").Where("allocation_id = ?", subq).Exec(ctx)
+	return err
 }

@@ -474,7 +474,7 @@ func (t *trial) maybeAllocateTask() error {
 }
 
 func (t *trial) addTask() error {
-	return t.db.AddTask(&model.Task{
+	return db.AddTask(context.Background(), &model.Task{
 		TaskID:     t.taskID,
 		TaskType:   model.TaskTypeTrial,
 		StartTime:  t.jobSubmissionTime, // TODO: Why is this the job submission time..?

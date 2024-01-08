@@ -191,7 +191,7 @@ func (as *allocationService) WatchRendezvous(
 		if rsp.Err != nil {
 			return nil, rsp.Err
 		}
-		err := ref.PersistRendezvousComplete()
+		err := ref.PersistRendezvousComplete(ctx)
 		if err != nil {
 			as.syslog.Error(err)
 		}

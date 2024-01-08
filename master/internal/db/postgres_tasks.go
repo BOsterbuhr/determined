@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/o1egl/paseto"
 	"github.com/pkg/errors"
 	"github.com/uptrace/bun"
 
@@ -16,36 +15,6 @@ import (
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/proto/pkg/apiv1"
 )
-
-// initAllocationSessions purges sessions of all closed allocations.
-func (db *PgDB) initAllocationSessions() error {
-	_, err := db.sql.Exec(`
-DELETE FROM allocation_sessions WHERE allocation_id in (
-	SELECT allocation_id FROM allocations
-	WHERE start_time IS NOT NULL AND end_time IS NOT NULL
-)`)
-	return err
-}
-
-// CheckTaskExists checks if the task exists.
-func (db *PgDB) CheckTaskExists(id model.TaskID) (bool, error) {
-	var exists bool
-	err := db.sql.QueryRow(`
-SELECT
-EXISTS(
-  SELECT task_id
-  FROM tasks
-  WHERE task_id = $1
-)`, id).Scan(&exists)
-	return exists, err
-}
-
-// AddTask UPSERT's the existence of a task.
-//
-// TODO(ilia): deprecate and use module function instead.
-func (db *PgDB) AddTask(t *model.Task) error {
-	return AddTask(context.TODO(), t)
-}
 
 // AddTask UPSERT's the existence of a task.
 func AddTask(ctx context.Context, t *model.Task) error {
@@ -199,89 +168,7 @@ WHERE a.allocation_id = $1;
 `, aID)
 }
 
-// AllocationByID retrieves an allocation by its ID.
-func (db *PgDB) AllocationByID(aID model.AllocationID) (*model.Allocation, error) {
-	var a model.Allocation
-	if err := Bun().NewSelect().Model(&a).Where("allocation_id = ?", aID).
-		Scan(context.TODO()); err != nil {
-		return nil, err
-	}
-	return &a, nil
-}
-
-// StartAllocationSession creates a row in the allocation_sessions table.
-func (db *PgDB) StartAllocationSession(
-	allocationID model.AllocationID, owner *model.User,
-) (string, error) {
-	if owner == nil {
-		return "", errors.New("owner cannot be nil for allocation session")
-	}
-
-	taskSession := &model.AllocationSession{
-		AllocationID: allocationID,
-		OwnerID:      &owner.ID,
-	}
-
-	query := `
-INSERT INTO allocation_sessions (allocation_id, owner_id) VALUES
-	(:allocation_id, :owner_id) RETURNING id`
-	if err := db.namedGet(&taskSession.ID, query, *taskSession); err != nil {
-		return "", err
-	}
-
-	v2 := paseto.NewV2()
-	token, err := v2.Sign(GetTokenKeys().PrivateKey, taskSession, nil)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to generate task authentication token")
-	}
-	return token, nil
-}
-
-// DeleteAllocationSession deletes the task session with the given AllocationID.
-func (db *PgDB) DeleteAllocationSession(allocationID model.AllocationID) error {
-	_, err := db.sql.Exec(
-		"DELETE FROM allocation_sessions WHERE allocation_id=$1", allocationID)
-	return err
-}
-
-// UpdateAllocationState stores the latest task state and readiness.
-func (db *PgDB) UpdateAllocationState(a model.Allocation) error {
-	_, err := db.sql.Exec(`
-		UPDATE allocations
-		SET state=$2, is_ready=$3
-		WHERE allocation_id=$1
-	`, a.AllocationID, a.State, a.IsReady)
-	return err
-}
-
-// UpdateAllocationPorts stores the latest task state and readiness.
-func UpdateAllocationPorts(a model.Allocation) error {
-	_, err := Bun().NewUpdate().Table("allocations").
-		Set("ports = ?", a.Ports).
-		Where("allocation_id = ?", a.AllocationID).
-		Exec(context.TODO())
-	return err
-}
-
-// UpdateAllocationStartTime stores the latest start time.
-func (db *PgDB) UpdateAllocationStartTime(a model.Allocation) error {
-	_, err := db.sql.Exec(`
-		UPDATE allocations
-		SET start_time = $2
-		WHERE allocation_id = $1
-	`, a.AllocationID, a.StartTime)
-	return err
-}
-
-// UpdateAllocationProxyAddress stores the proxy address.
-func (db *PgDB) UpdateAllocationProxyAddress(a model.Allocation) error {
-	_, err := db.sql.Exec(`
-		UPDATE allocations
-		SET proxy_address = $2
-		WHERE allocation_id = $1
-	`, a.AllocationID, a.ProxyAddress)
-	return err
-}
+// TODO CAROLINA, stopping here for today.
 
 // CloseOpenAllocations finds all allocations that were open when the master crashed
 // and adds an end time.

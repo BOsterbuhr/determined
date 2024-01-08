@@ -4,6 +4,7 @@
 package task
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -91,7 +92,7 @@ func TestAllocation(t *testing.T) {
 				rID2: mockRsvn(rID2, "agent-2"),
 			}
 
-			a.HandleRMEvent(&sproto.ResourcesAllocated{
+			a.HandleRMEvent(context.Background(), &sproto.ResourcesAllocated{
 				ID:           a.req.AllocationID,
 				ResourcePool: "default",
 				Resources:    resources,
@@ -105,12 +106,12 @@ func TestAllocation(t *testing.T) {
 					ResourcesID:    summary.ResourcesID,
 					ResourcesState: sproto.Assigned,
 				}
-				a.HandleRMEvent(&containerStateChanged)
+				a.HandleRMEvent(context.Background(), &containerStateChanged)
 				require.Nil(t, a.exited)
 
 				beforePulling := time.Now().UTC().Truncate(time.Millisecond)
 				containerStateChanged.ResourcesState = sproto.Pulling
-				a.HandleRMEvent(&containerStateChanged)
+				a.HandleRMEvent(context.Background(), &containerStateChanged)
 				require.Nil(t, a.exited)
 				afterPulling := time.Now().UTC().Truncate(time.Millisecond)
 
@@ -125,7 +126,7 @@ func TestAllocation(t *testing.T) {
 				}
 
 				containerStateChanged.ResourcesState = sproto.Starting
-				a.HandleRMEvent(&containerStateChanged)
+				a.HandleRMEvent(context.Background(), &containerStateChanged)
 				require.Nil(t, a.exited)
 				containerStateChanged.ResourcesState = sproto.Running
 				containerStateChanged.ResourcesStarted = &sproto.ResourcesStarted{
@@ -138,7 +139,7 @@ func TestAllocation(t *testing.T) {
 						},
 					},
 				}
-				a.HandleRMEvent(&containerStateChanged)
+				a.HandleRMEvent(context.Background(), &containerStateChanged)
 				require.Nil(t, a.exited)
 				containerStateChanged.ResourcesStarted = nil
 
@@ -163,7 +164,7 @@ func TestAllocation(t *testing.T) {
 						Failure: tc.err,
 					},
 				}
-				a.HandleRMEvent(&containerStateChanged)
+				a.HandleRMEvent(context.Background(), &containerStateChanged)
 			}
 			require.Equal(t, tc.exit.Err, a.exited.Err)
 			require.Equal(t, tc.exit.UserRequestedStop, a.exited.UserRequestedStop)

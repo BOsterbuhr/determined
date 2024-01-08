@@ -43,7 +43,6 @@ type DB interface {
 		id int,
 		experimentBest, trialBest, trialLatest int,
 	) ([]uuid.UUID, error)
-	AddTask(t *model.Task) error
 	UpdateTrial(id int, newState model.State) error
 	UpdateTrialRunnerState(id int, state string) error
 	UpdateTrialRunnerMetadata(id int, md *trialv1.TrialRunnerMetadata) error
@@ -89,11 +88,6 @@ type DB interface {
 		trials []*apiv1.TrialsSnapshotResponse_Trial, endTime time.Time, err error)
 	TopTrialsByTrainingLength(experimentID int, maxTrials int, metric string,
 		smallerIsBetter bool) (trials []int32, err error)
-	StartAllocationSession(allocationID model.AllocationID, owner *model.User) (string, error)
-	DeleteAllocationSession(allocationID model.AllocationID) error
-	UpdateAllocationState(allocation model.Allocation) error
-	UpdateAllocationStartTime(allocation model.Allocation) error
-	UpdateAllocationProxyAddress(allocation model.Allocation) error
 	ExperimentSnapshot(experimentID int) ([]byte, int, error)
 	SaveSnapshot(
 		experimentID int, version int, experimentSnapshot []byte,

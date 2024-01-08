@@ -739,7 +739,7 @@ func requireDBState(
 	id model.AllocationID,
 	expected model.AllocationState,
 ) *model.Allocation {
-	dbState, err := db.AllocationByID(id)
+	dbState, err := AllocationByID(context.Background(), id)
 	require.NoError(t, err)
 	require.NotNil(t, dbState.State)
 	require.Equal(t, expected, *dbState.State)

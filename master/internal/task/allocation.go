@@ -234,7 +234,7 @@ func (a *allocation) run(ctx context.Context, sub *sproto.ResourcesSubscription)
 			return
 		}
 
-		done := a.HandleRMEvent(event)
+		done := a.HandleRMEvent(ctx, event)
 		if done {
 			return
 		}
@@ -242,23 +242,23 @@ func (a *allocation) run(ctx context.Context, sub *sproto.ResourcesSubscription)
 }
 
 // HandleRMEvent handles downstream events from the resource manager.
-func (a *allocation) HandleRMEvent(msg sproto.ResourcesEvent) (done bool) {
+func (a *allocation) HandleRMEvent(ctx context.Context, msg sproto.ResourcesEvent) (done bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	switch msg := msg.(type) {
 	case *sproto.ResourcesAllocated:
-		if err := a.resourcesAllocated(msg); err != nil {
+		if err := a.resourcesAllocated(ctx, msg); err != nil {
 			a.crash(err)
 		}
 	case *sproto.ResourcesStateChanged:
-		a.resourcesStateChanged(msg)
+		a.resourcesStateChanged(ctx, msg)
 	case *sproto.ReleaseResources:
 		a.releaseResources(msg)
 	case *sproto.ContainerLog:
 		a.sendTaskLog(msg.ToTaskLog())
 	case *sproto.ResourcesRestoreError:
-		a.restoreResourceFailure(msg)
+		a.restoreResourceFailure(ctx, msg)
 		return true
 	case *sproto.InvalidResourcesRequestError:
 		a.crash(msg.Cause)
@@ -323,7 +323,7 @@ func (a *allocation) Signal(sig AllocationSignal, reason string) {
 
 // SetProxyAddress sets the proxy address of the allocation and sets up proxies for any services
 // it provides.
-func (a *allocation) SetProxyAddress(_ context.Context, address string) error {
+func (a *allocation) SetProxyAddress(ctx context.Context, address string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -332,7 +332,7 @@ func (a *allocation) SetProxyAddress(_ context.Context, address string) error {
 		return nil
 	}
 	a.model.ProxyAddress = &address
-	if err := a.db.UpdateAllocationProxyAddress(a.model); err != nil {
+	if err := UpdateAllocationProxyAddress(ctx, a.model); err != nil {
 		a.crash(err)
 		return err
 	}
@@ -347,12 +347,12 @@ func (a *allocation) SendContainerLog(log *sproto.ContainerLog) {
 }
 
 // SetWaiting moves the allocation to the waiting state if it has not progressed past it yet.
-func (a *allocation) SetWaiting(_ context.Context) error {
+func (a *allocation) SetWaiting(ctx context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	a.setMostProgressedModelState(model.AllocationStateWaiting)
-	if err := a.db.UpdateAllocationState(a.model); err != nil {
+	if err := UpdateAllocationState(ctx, a.model); err != nil {
 		a.crash(err)
 		return err
 	}
@@ -361,7 +361,7 @@ func (a *allocation) SetWaiting(_ context.Context) error {
 
 // SetReady sets the ready bit and moves the allocation to the running state if it has not
 // progressed past it already.
-func (a *allocation) SetReady(_ context.Context) error {
+func (a *allocation) SetReady(ctx context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -371,24 +371,24 @@ func (a *allocation) SetReady(_ context.Context) error {
 	a.sendTaskLog(&model.TaskLog{Log: fmt.Sprintf("Service of %s is available", a.req.Name)})
 	a.setMostProgressedModelState(model.AllocationStateRunning)
 	a.model.IsReady = ptrs.Ptr(true)
-	if err := a.db.UpdateAllocationState(a.model); err != nil {
+	if err := UpdateAllocationState(ctx, a.model); err != nil {
 		a.crash(err)
 		return err
 	}
 	return nil
 }
 
-func (a *allocation) PersistRendezvousComplete() error {
+func (a *allocation) PersistRendezvousComplete(ctx context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.persistRendezvousComplete()
+	return a.persistRendezvousComplete(ctx)
 }
 
-func (a *allocation) persistRendezvousComplete() error {
+func (a *allocation) persistRendezvousComplete(ctx context.Context) error {
 	if a.model.IsReady == nil || (a.model.IsReady != nil && !*a.model.IsReady) {
 		a.syslog.Info("all containers are connected successfully (task container state changed)")
 		a.model.IsReady = ptrs.Ptr(true)
-		if err := a.db.UpdateAllocationState(a.model); err != nil {
+		if err := UpdateAllocationState(ctx, a.model); err != nil {
 			return err
 		}
 	}
@@ -573,7 +573,7 @@ func (a *allocation) finalize(
 	}
 
 	a.setMostProgressedModelState(model.AllocationStateTerminated)
-	if err := a.db.UpdateAllocationState(a.model); err != nil {
+	if err := UpdateAllocationState(context.Background(), a.model); err != nil {
 		a.syslog.WithError(err).Error("failed to set allocation state to terminated")
 	}
 	a.purgeRestorableResources()
@@ -590,7 +590,7 @@ func (a *allocation) finalize(
 // ask to the parent to build its task spec.. this is mostly a hack to defer lots of computationally
 // heavy stuff unless it is necessarily (which also works to spread occurrences of the same work
 // out). Eventually, Allocations should just be started with their TaskSpec.
-func (a *allocation) resourcesAllocated(msg *sproto.ResourcesAllocated) error {
+func (a *allocation) resourcesAllocated(ctx context.Context, msg *sproto.ResourcesAllocated) error {
 	a.syslog.WithField("restore", a.req.Restore).Infof("%d resources allocated", len(msg.Resources))
 	if !a.req.Restore {
 		if a.getModelState() != model.AllocationStatePending {
@@ -617,7 +617,7 @@ func (a *allocation) resourcesAllocated(msg *sproto.ResourcesAllocated) error {
 		}
 	})
 
-	if err := a.db.UpdateAllocationState(a.model); err != nil {
+	if err := UpdateAllocationState(ctx, a.model); err != nil {
 		return errors.Wrap(err, "updating allocation state")
 	}
 
@@ -672,7 +672,7 @@ func (a *allocation) resourcesAllocated(msg *sproto.ResourcesAllocated) error {
 	} else {
 		spec := a.specifier.ToTaskSpec()
 
-		token, err := a.db.StartAllocationSession(a.model.AllocationID, spec.Owner)
+		token, err := StartAllocationSession(ctx, a.model.AllocationID, spec.Owner)
 		if err != nil {
 			return errors.Wrap(err, "starting a new allocation session")
 		}
@@ -687,7 +687,7 @@ func (a *allocation) resourcesAllocated(msg *sproto.ResourcesAllocated) error {
 			}
 		})
 
-		err = db.UpdateAllocationPorts(a.model)
+		err = UpdateAllocationPorts(ctx, a.model)
 		if err != nil {
 			return fmt.Errorf("updating allocation db")
 		}
@@ -715,7 +715,7 @@ func (a *allocation) resourcesAllocated(msg *sproto.ResourcesAllocated) error {
 
 // resourcesStateChanged handles changes in container states. It can move us to ready,
 // kill us or close us normally depending on the changes, among other things.
-func (a *allocation) resourcesStateChanged(msg *sproto.ResourcesStateChanged) {
+func (a *allocation) resourcesStateChanged(ctx context.Context, msg *sproto.ResourcesStateChanged) {
 	if _, ok := a.resources[msg.ResourcesID]; !ok {
 		a.syslog.
 			WithField("container", msg.Container).
@@ -753,7 +753,7 @@ func (a *allocation) resourcesStateChanged(msg *sproto.ResourcesStateChanged) {
 		}
 
 		if a.rendezvous != nil && a.rendezvous.try() {
-			err := a.persistRendezvousComplete()
+			err := a.persistRendezvousComplete(ctx)
 			if err != nil {
 				a.syslog.Error(err)
 			}
@@ -841,17 +841,17 @@ func (a *allocation) resourcesStateChanged(msg *sproto.ResourcesStateChanged) {
 		}
 	}
 
-	if err := a.db.UpdateAllocationState(a.model); err != nil {
+	if err := UpdateAllocationState(ctx, a.model); err != nil {
 		a.syslog.Error(err)
 	}
 }
 
 // restoreResourceFailure handles the restored resource failures.
-func (a *allocation) restoreResourceFailure(msg *sproto.ResourcesRestoreError) {
+func (a *allocation) restoreResourceFailure(ctx context.Context, msg *sproto.ResourcesRestoreError) {
 	a.syslog.Debugf("allocation resource failure")
 	a.setMostProgressedModelState(model.AllocationStateTerminating)
 
-	if err := a.db.UpdateAllocationState(a.model); err != nil {
+	if err := UpdateAllocationState(ctx, a.model); err != nil {
 		a.syslog.Error(err)
 	}
 
@@ -931,10 +931,10 @@ func (a *allocation) tryExitOrTerminate(reason string, forcePreemption bool) {
 func (a *allocation) tryExit(reason string) (exited bool) {
 	switch {
 	case !a.resourcesStarted:
-		a.terminated(fmt.Sprintf("exit before start: %s", reason))
+		a.terminated(context.Background(), fmt.Sprintf("exit before start: %s", reason))
 		return true
 	case len(a.resources.exited()) == len(a.resources):
-		a.terminated(fmt.Sprintf("all resources exited: %s", reason))
+		a.terminated(context.Background(), fmt.Sprintf("all resources exited: %s", reason))
 		return true
 	case a.allNonDaemonsExited():
 		a.killedDaemons = true
@@ -1127,7 +1127,7 @@ func (a *allocation) containerProxyAddresses() []cproto.Address {
 	return result
 }
 
-func (a *allocation) terminated(reason string) {
+func (a *allocation) terminated(ctx context.Context, reason string) {
 	if a.exited != nil {
 		// Never exit twice. If this were allowed, a trial could receive two task.AllocationExited
 		// messages. On receipt of the first message, the trial awaits our exit. Once we exit, it
@@ -1191,7 +1191,7 @@ func (a *allocation) markResourcesStarted() {
 	} else {
 		a.sendTaskLog(&model.TaskLog{Log: fmt.Sprintf("%s was assigned to an agent", a.req.Name)})
 	}
-	if err := a.db.UpdateAllocationStartTime(a.model); err != nil {
+	if err := UpdateAllocationStartTime(context.Background(), a.model); err != nil {
 		a.syslog.
 			WithError(err).
 			Errorf("allocation will not be properly accounted for")
@@ -1200,7 +1200,7 @@ func (a *allocation) markResourcesStarted() {
 
 // markResourcesReleased persists completion information.
 func (a *allocation) markResourcesReleased() {
-	if err := a.db.DeleteAllocationSession(a.model.AllocationID); err != nil {
+	if err := DeleteAllocationSession(context.Background(), a.model.AllocationID); err != nil {
 		a.syslog.WithError(err).Error("error deleting allocation session")
 	}
 	if a.model.StartTime == nil {

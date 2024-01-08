@@ -2737,7 +2737,7 @@ func (a *apiServer) createTrialTx(
 		nil,
 		0)
 
-	if err := a.m.db.AddTask(&model.Task{
+	if err := db.AddTask(context.Background(), &model.Task{
 		TaskID:     taskID,
 		TaskType:   model.TaskTypeTrial,
 		StartTime:  time.Now(),

@@ -11,13 +11,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"reflect"
-	"slices"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/shopspring/decimal"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -26,105 +22,7 @@ import (
 	"github.com/determined-ai/determined/master/pkg/etc"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
-	"github.com/determined-ai/determined/proto/pkg/taskv1"
 )
-
-// TestJobTaskAndAllocationAPI, in lieu of an ORM, ensures that the mappings into and out of the
-// database are total. We should look into an ORM in the near to medium term future.
-func TestJobTaskAndAllocationAPI(t *testing.T) {
-	ctx := context.Background()
-	require.NoError(t, etc.SetRootPath(RootFromDB))
-	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-
-	// Add a mock user.
-	user := RequireMockUser(t, db)
-
-	// Add a job.
-	jID := model.NewJobID()
-	jIn := &model.Job{
-		JobID:   jID,
-		JobType: model.JobTypeExperiment,
-		OwnerID: &user.ID,
-		QPos:    decimal.New(0, 0),
-	}
-	err := db.AddJob(jIn)
-	require.NoError(t, err, "failed to add job")
-
-	// Retrieve it back and make sure the mapping is exhaustive.
-	jOut, err := db.JobByID(jID)
-	require.NoError(t, err, "failed to retrieve job")
-	require.True(t, reflect.DeepEqual(jIn, jOut), pprintedExpect(jIn, jOut))
-
-	// Add a task.
-	tID := model.NewTaskID()
-	tIn := &model.Task{
-		TaskID:    tID,
-		JobID:     &jID,
-		TaskType:  model.TaskTypeTrial,
-		StartTime: time.Now().UTC().Truncate(time.Millisecond),
-	}
-	err = db.AddTask(tIn)
-	require.NoError(t, err, "failed to add task")
-
-	// Retrieve it back and make sure the mapping is exhaustive.
-	tOut, err := TaskByID(ctx, tID)
-	require.NoError(t, err, "failed to retrieve task")
-	require.True(t, reflect.DeepEqual(tIn, tOut), pprintedExpect(tIn, tOut))
-
-	// Complete it.
-	tIn.EndTime = ptrs.Ptr(time.Now().UTC().Truncate(time.Millisecond))
-	err = db.CompleteTask(tID, *tIn.EndTime)
-	require.NoError(t, err, "failed to mark task completed")
-
-	// Re-retrieve it back and make sure the mapping is still exhaustive.
-	tOut, err = TaskByID(ctx, tID)
-	require.NoError(t, err, "failed to re-retrieve task")
-	require.True(t, reflect.DeepEqual(tIn, tOut), pprintedExpect(tIn, tOut))
-
-	// And an allocation.
-	ports := map[string]int{}
-	ports["dtrain_port"] = 0
-	ports["inter_train_process_comm_port1"] = 0
-	ports["inter_train_process_comm_port2"] = 0
-	ports["c10d_port"] = 0
-
-	aID := model.AllocationID(string(tID) + "-1")
-	aIn := &model.Allocation{
-		AllocationID: aID,
-		TaskID:       tID,
-		Slots:        8,
-		ResourcePool: "somethingelse",
-		StartTime:    ptrs.Ptr(time.Now().UTC().Truncate(time.Millisecond)),
-		Ports:        ports,
-	}
-	err = db.AddAllocation(aIn)
-	require.NoError(t, err, "failed to add allocation")
-
-	// Update ports
-	ports["dtrain_port"] = 0
-	ports["inter_train_process_comm_port1"] = 0
-	ports["inter_train_process_comm_port2"] = 0
-	ports["c10d_port"] = 0
-	aIn.Ports = ports
-	err = UpdateAllocationPorts(*aIn)
-	require.NoError(t, err, "failed to update port offset")
-
-	// Retrieve it back and make sure the mapping is exhaustive.
-	aOut, err := db.AllocationByID(aIn.AllocationID)
-	require.NoError(t, err, "failed to retrieve allocation")
-	require.True(t, reflect.DeepEqual(aIn, aOut), pprintedExpect(aIn, aOut))
-
-	// Complete it.
-	aIn.EndTime = ptrs.Ptr(time.Now().UTC().Truncate(time.Millisecond))
-	err = db.CompleteAllocation(aIn)
-	require.NoError(t, err, "failed to mark allocation completed")
-
-	// Re-retrieve it back and make sure the mapping is still exhaustive.
-	aOut, err = db.AllocationByID(aIn.AllocationID)
-	require.NoError(t, err, "failed to re-retrieve allocation")
-	require.True(t, reflect.DeepEqual(aIn, aOut), pprintedExpect(aIn, aOut))
-}
 
 func TestRecordAndEndTaskStats(t *testing.T) {
 	require.NoError(t, etc.SetRootPath(RootFromDB))
@@ -132,7 +30,7 @@ func TestRecordAndEndTaskStats(t *testing.T) {
 	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 
 	tID := model.NewTaskID()
-	require.NoError(t, db.AddTask(&model.Task{
+	require.NoError(t, AddTask(context.Background(), &model.Task{
 		TaskID:    tID,
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
@@ -184,7 +82,7 @@ func TestNonExperimentTasksContextDirectory(t *testing.T) {
 
 	// Nil context directory.
 	tID := model.NewTaskID()
-	require.NoError(t, db.AddTask(&model.Task{
+	require.NoError(t, AddTask(context.Background(), &model.Task{
 		TaskID:    tID,
 		TaskType:  model.TaskTypeNotebook,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
@@ -198,7 +96,7 @@ func TestNonExperimentTasksContextDirectory(t *testing.T) {
 
 	// Non nil context directory.
 	tID = model.NewTaskID()
-	require.NoError(t, db.AddTask(&model.Task{
+	require.NoError(t, AddTask(context.Background(), &model.Task{
 		TaskID:    tID,
 		TaskType:  model.TaskTypeNotebook,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
@@ -210,74 +108,6 @@ func TestNonExperimentTasksContextDirectory(t *testing.T) {
 	dir, err = NonExperimentTasksContextDirectory(ctx, tID)
 	require.NoError(t, err)
 	require.Equal(t, expectedDir, dir)
-}
-
-func TestAllocationState(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
-	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-
-	// Add an allocation of every possible state.
-	states := []model.AllocationState{
-		model.AllocationStatePending,
-		model.AllocationStateAssigned,
-		model.AllocationStatePulling,
-		model.AllocationStateStarting,
-		model.AllocationStateRunning,
-		model.AllocationStateTerminating,
-		model.AllocationStateTerminated,
-	}
-	for _, state := range states {
-		tID := model.NewTaskID()
-		task := &model.Task{
-			TaskID:    tID,
-			TaskType:  model.TaskTypeTrial,
-			StartTime: time.Now().UTC().Truncate(time.Millisecond),
-		}
-		require.NoError(t, db.AddTask(task), "failed to add task")
-
-		s := state
-		a := &model.Allocation{
-			TaskID:       tID,
-			AllocationID: model.AllocationID(tID + "allocationID"),
-			ResourcePool: "default",
-			State:        &s,
-		}
-		require.NoError(t, db.AddAllocation(a), "failed to add allocation")
-
-		// Update allocation to every possible state.
-		testNoUpdate := true
-		for j := 0; j < len(states); j++ {
-			if testNoUpdate {
-				testNoUpdate = false
-				j-- // Go to first iteration of loop after this.
-			} else {
-				a.State = &states[j]
-				require.NoError(t, db.UpdateAllocationState(*a),
-					"failed to update allocation state")
-			}
-
-			// Get task back as a proto struct.
-			tOut := &taskv1.Task{}
-			require.NoError(t, db.QueryProto("get_task", tOut, tID), "failed to get task")
-
-			// Ensure our state is the same as allocation.
-			require.Equal(t, len(tOut.Allocations), 1, "failed to get exactly 1 allocation")
-			aOut := tOut.Allocations[0]
-
-			if slices.Contains([]model.AllocationState{
-				model.AllocationStatePending,
-				model.AllocationStateAssigned,
-			}, *a.State) {
-				require.Equal(t, "STATE_QUEUED", aOut.State.String(),
-					"allocation states not converted to queued")
-			} else {
-				require.Equal(t, a.State.Proto(), aOut.State, "proto state not equal")
-				require.Equal(t, fmt.Sprintf("STATE_%s", *a.State), aOut.State.String(),
-					"proto state to strings not equal")
-			}
-		}
-	}
 }
 
 func TestExhaustiveEnums(t *testing.T) {

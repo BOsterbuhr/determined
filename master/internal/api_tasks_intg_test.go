@@ -113,7 +113,7 @@ func mockNotebookWithWorkspaceID(
 		TaskID:   model.NewTaskID(),
 		TaskType: model.TaskTypeNotebook,
 	}
-	require.NoError(t, api.m.db.AddTask(nb))
+	require.NoError(t, db.AddTask(context.Background(), nb))
 
 	allocationID := model.AllocationID(string(nb.TaskID) + ".1")
 	require.NoError(t, api.m.db.AddAllocation(&model.Allocation{
@@ -324,7 +324,7 @@ func TestAddAllocationAcceleratorData(t *testing.T) {
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
-	require.NoError(t, api.m.db.AddTask(task), "failed to add task")
+	require.NoError(t, db.AddTask(context.Background(), task), "failed to add task")
 
 	aID := tID + "-1"
 	a := &model.Allocation{
@@ -362,7 +362,7 @@ func TestGetAllocationAcceleratorDataWithNoData(t *testing.T) {
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
-	require.NoError(t, api.m.db.AddTask(task), "failed to add task")
+	require.NoError(t, db.AddTask(context.Background(), task), "failed to add task")
 
 	aID := tID + "-1"
 	a := &model.Allocation{
@@ -390,7 +390,7 @@ func TestGetAllocationAcceleratorData(t *testing.T) {
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
-	require.NoError(t, api.m.db.AddTask(task), "failed to add task")
+	require.NoError(t, db.AddTask(context.Background(), task), "failed to add task")
 
 	aID1 := tID + "-1"
 	a1 := &model.Allocation{

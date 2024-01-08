@@ -315,7 +315,7 @@ func RequireMockTask(t *testing.T, db *PgDB, userID *model.UserID) *model.Task {
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
-	err := db.AddTask(tIn)
+	err := AddTask(context.Background(), tIn)
 	require.NoError(t, err, "failed to add task")
 	return tIn
 }
