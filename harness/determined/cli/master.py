@@ -124,7 +124,7 @@ args_description = [
                 help="number of lines to show, counting from the end "
                 "of the log (default is all)")
         ]),
-        Cmd("gc-logs", cleanup_logs, "cleanup expired task logs", [
+        Cmd("cleanup-logs", cleanup_logs, "cleanup expired task logs", [
             Group(cli.output_format_args["json"], cli.output_format_args["yaml"])
         ]),
     ])
