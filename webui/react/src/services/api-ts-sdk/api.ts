@@ -1841,11 +1841,11 @@ export interface V1CheckpointWorkload {
  */
 export interface V1CleanupLogsResponse {
     /**
-     * How many rows of logs were removed.
+     * How many row of logs were removed.
      * @type {string}
      * @memberof V1CleanupLogsResponse
      */
-    rows: string;
+    removedCount: string;
 }
 /**
  * Close a trial with given ID.

@@ -251,7 +251,7 @@ func PopulateExpTrialsMetrics(pgdb *db.PgDB, masterConfig *config.Config, trivia
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
 	if masterConfig.Logging.Retention != nil {
-		tIn.LogRetention = masterConfig.Logging.Retention.Duration
+		tIn.LogRetentionDays = masterConfig.Logging.Retention.Days
 	}
 	if err = pgdb.AddTask(tIn); err != nil {
 		return err

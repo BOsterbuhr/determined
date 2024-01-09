@@ -835,7 +835,7 @@ var (
                 "$ref": "http://determined.ai/schemas/expconf/v0/log-policy.json"
             }
         },
-        "log_retention": {
+        "log_retention_days": {
             "type": [
                 "integer",
                 "null"

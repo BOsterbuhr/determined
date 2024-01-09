@@ -50,9 +50,9 @@ stages:
           level: debug
         logging:
           retention:
-            duration: 1
+            days: 1
+            schedule: 1m
             cleanup_on_start: true
-            cleanup_schedule: 1m
         enable_cors: true
         observability:
           enable_prometheus: true

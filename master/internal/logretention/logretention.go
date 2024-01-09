@@ -26,14 +26,14 @@ func init() {
 
 // Schedule begins a log deletion schedule according to the provided LogRetentionPolicy.
 func Schedule(config model.LogRetentionPolicy, db *db.PgDB) error {
-	var defaultLogRetention int16 = -1
-	if config.Duration != nil {
-		defaultLogRetention = *config.Duration
+	var defaultLogRetentionDays int16 = -1
+	if config.Days != nil {
+		defaultLogRetentionDays = *config.Days
 	}
 	// Create a task that deletes expired task logs.
 	task := gocron.NewTask(func() {
-		log.WithField("default-duration", defaultLogRetention).Trace("deleting expired task logs")
-		count, err := db.DeleteExpiredTaskLogs(defaultLogRetention)
+		log.WithField("default-duration", defaultLogRetentionDays).Trace("deleting expired task logs")
+		count, err := db.DeleteExpiredTaskLogs(defaultLogRetentionDays)
 		if err != nil {
 			log.WithError(err).Error("failed to delete expired task logs")
 		} else if count > 0 {
@@ -49,8 +49,8 @@ func Schedule(config model.LogRetentionPolicy, db *db.PgDB) error {
 		}
 	}
 	// If a cleanup schedule is set, schedule the cleanup task.
-	if config.CleanupSchedule != nil {
-		if d, err := time.ParseDuration(*config.CleanupSchedule); err == nil {
+	if config.Schedule != nil {
+		if d, err := time.ParseDuration(*config.Schedule); err == nil {
 			// Try to parse out a duration.
 			log.WithField("duration", d).Debug("running task log cleanup with duration")
 			_, err := scheduler.NewJob(gocron.DurationJob(d), task)
@@ -59,8 +59,8 @@ func Schedule(config model.LogRetentionPolicy, db *db.PgDB) error {
 			}
 		} else {
 			// Otherwise, use a cron.
-			log.WithField("cron", *config.CleanupSchedule).Debug("running task log cleanup with cron")
-			_, err := scheduler.NewJob(gocron.CronJob(*config.CleanupSchedule, false), task)
+			log.WithField("cron", *config.Schedule).Debug("running task log cleanup with cron")
+			_, err := scheduler.NewJob(gocron.CronJob(*config.Schedule, false), task)
 			if err != nil {
 				return errors.Wrapf(err, "failed to schedule cron task log cleanup")
 			}

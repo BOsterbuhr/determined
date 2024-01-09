@@ -248,12 +248,12 @@ func (a *apiServer) CleanupLogs(
 		return nil, permErr
 	}
 
-	resp := &apiv1.CleanupLogsResponse{}
-	var defaultLogRetention int16 = -1
-	if a.m.taskSpec.LogRetention != nil {
-		defaultLogRetention = *a.m.taskSpec.LogRetention
+	var defaultLogRetentionDays int16 = -1
+	if a.m.taskSpec.LogRetentionDays != nil {
+		defaultLogRetentionDays = *a.m.taskSpec.LogRetentionDays
 	}
 
-	resp.Rows, err = a.m.db.DeleteExpiredTaskLogs(defaultLogRetention)
+	resp := &apiv1.CleanupLogsResponse{}
+	resp.RemovedCount, err = a.m.db.DeleteExpiredTaskLogs(defaultLogRetentionDays)
 	return resp, err
 }

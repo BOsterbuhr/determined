@@ -62,8 +62,8 @@ type TaskSpec struct {
 	Description string
 	// LoggingFields are fields to include in each record of structured logging.
 	LoggingFields map[string]string
-	// LogRetention is the number of days to retain logs for.
-	LogRetention *int16
+	// LogRetentionDays is the number of days to retain logs for.
+	LogRetentionDays *int16
 
 	// Fields that are set on the cluster level.
 	ClusterID   string

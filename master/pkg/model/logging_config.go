@@ -22,10 +22,10 @@ type LoggingConfig struct {
 
 // LogRetentionPolicy configures the default log retention policy for trials and tasks.
 type LogRetentionPolicy struct {
-	// Duration is the default number of days to retain logs for.
-	Duration *int16 `json:"duration"`
-	// CleanupSchedule is a time duration or cron expression interval to cleanup logs.
-	CleanupSchedule *string `json:"cleanup_schedule"`
+	// Days is the default number of days to retain logs for.
+	Days *int16 `json:"days"`
+	// Schedule is a time duration or cron expression interval to cleanup logs.
+	Schedule *string `json:"schedule"`
 	// CleanupOnStart is whether to cleanup logs on startup.
 	CleanupOnStart *bool `json:"cleanup_on_start"`
 }

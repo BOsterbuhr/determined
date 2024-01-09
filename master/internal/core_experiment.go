@@ -315,8 +315,8 @@ func (m *Master) parseCreateExperiment(req *apiv1.CreateExperimentRequest, owner
 		return nil, config, nil, nil, errors.New("managed experiments require entrypoint")
 	}
 	// Merge log retention into the taskSpec.
-	if config.RawLogRetention != nil {
-		taskSpec.LogRetention = config.RawLogRetention
+	if config.RawLogRetentionDays != nil {
+		taskSpec.LogRetentionDays = config.RawLogRetentionDays
 	}
 
 	// Merge in workspace's checkpoint storage into the conifg.

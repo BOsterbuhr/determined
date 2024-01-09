@@ -2106,20 +2106,20 @@ class v1CleanupLogsResponse(Printable):
     def __init__(
         self,
         *,
-        rows: str,
+        removedCount: str,
     ):
-        self.rows = rows
+        self.removedCount = removedCount
 
     @classmethod
     def from_json(cls, obj: Json) -> "v1CleanupLogsResponse":
         kwargs: "typing.Dict[str, typing.Any]" = {
-            "rows": obj["rows"],
+            "removedCount": obj["removedCount"],
         }
         return cls(**kwargs)
 
     def to_json(self, omit_unset: bool = False) -> typing.Dict[str, typing.Any]:
         out: "typing.Dict[str, typing.Any]" = {
-            "rows": self.rows,
+            "removedCount": self.removedCount,
         }
         return out
 

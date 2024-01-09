@@ -1,2 +1,2 @@
 ALTER TABLE tasks
-    ADD COLUMN log_retention SMALLINT;
+    ADD COLUMN log_retention_days SMALLINT;

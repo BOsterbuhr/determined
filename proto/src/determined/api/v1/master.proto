@@ -190,8 +190,8 @@ message CleanupLogsRequest {}
 // Response to CleanupLogsRequest.
 message CleanupLogsResponse {
   option (grpc.gateway.protoc_gen_swagger.options.openapiv2_schema) = {
-    json_schema: { required: [ "rows" ] }
+    json_schema: { required: [ "removed_count" ] }
   };
-  // How many rows of logs were removed.
-  int64 rows = 1;
+  // How many row of logs were removed.
+  int64 removed_count = 1;
 }
