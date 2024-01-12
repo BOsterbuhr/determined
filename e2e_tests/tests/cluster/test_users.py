@@ -116,7 +116,7 @@ def test_logout() -> None:
 @pytest.mark.e2e_cpu
 @pytest.mark.e2e_cpu_postgres
 def test_activate_deactivate() -> None:
-    sess, password = api_utils.create_test_user(True)
+    sess, password = api_utils.create_test_user()
 
     # Deactivate user.
     admin = api_utils.admin_session()
@@ -200,8 +200,8 @@ def test_change_username() -> None:
 @pytest.mark.e2e_cpu_cross_version
 def test_experiment_creation_and_listing() -> None:
     # Create 2 users.
-    sess1, _ = api_utils.create_test_user(True)
-    sess2, _ = api_utils.create_test_user(True)
+    sess1, _ = api_utils.create_test_user()
+    sess2, _ = api_utils.create_test_user()
 
     # Create an experiment as first user.
     experiment_id1 = exp.run_basic_test(
@@ -231,7 +231,7 @@ def test_experiment_creation_and_listing() -> None:
 
 @pytest.mark.e2e_cpu
 def test_login_wrong_password() -> None:
-    sess, password = api_utils.create_test_user(True)
+    sess, password = api_utils.create_test_user()
     with pytest.raises(errors.UnauthenticatedException):
         api_utils.make_session(sess.username, "wrong" + password)
 
@@ -244,7 +244,7 @@ def test_login_as_non_existent_user() -> None:
 
 @pytest.mark.e2e_cpu
 def test_login_as_non_active_user() -> None:
-    sess, password = api_utils.create_test_user(True)
+    sess, password = api_utils.create_test_user()
     admin = api_utils.admin_session()
     d = client.Determined._from_session(admin)
     userobj = d.get_user_by_name(sess.username)
@@ -257,7 +257,7 @@ def test_login_as_non_active_user() -> None:
 @pytest.mark.e2e_cpu
 def test_non_admin_user_link_with_agent_user() -> None:
     sess1 = api_utils.user_session()
-    sess2, _ = api_utils.create_test_user(True)
+    sess2, _ = api_utils.create_test_user()
 
     cmd = [
         "det",
@@ -372,8 +372,8 @@ def kill_tensorboards(sess: api.Session, *tensorboard_ids: str) -> None:
 
 @pytest.mark.e2e_cpu
 def test_notebook_creation_and_listing() -> None:
-    sess1, _ = api_utils.create_test_user(True)
-    sess2, _ = api_utils.create_test_user(True)
+    sess1, _ = api_utils.create_test_user()
+    sess2, _ = api_utils.create_test_user()
 
     notebook_id1 = start_notebook(sess1)
 
@@ -397,8 +397,8 @@ def test_notebook_creation_and_listing() -> None:
 
 @pytest.mark.e2e_cpu
 def test_tensorboard_creation_and_listing() -> None:
-    sess1, _ = api_utils.create_test_user(True)
-    sess2, _ = api_utils.create_test_user(True)
+    sess1, _ = api_utils.create_test_user()
+    sess2, _ = api_utils.create_test_user()
 
     # Create an experiment.
     experiment_id1 = exp.run_basic_test(
@@ -436,8 +436,8 @@ def test_tensorboard_creation_and_listing() -> None:
 
 @pytest.mark.e2e_cpu
 def test_command_creation_and_listing() -> None:
-    sess1, _ = api_utils.create_test_user(True)
-    sess2, _ = api_utils.create_test_user(True)
+    sess1, _ = api_utils.create_test_user()
+    sess2, _ = api_utils.create_test_user()
 
     command_id1 = run_command(session=sess1)
     command_id2 = run_command(session=sess2)
@@ -455,7 +455,7 @@ def test_command_creation_and_listing() -> None:
 
 def create_linked_user(uid: int, user: str, gid: int, group: str) -> api.Session:
     admin = api_utils.admin_session()
-    sess, _ = api_utils.create_test_user(False)
+    sess, _ = api_utils.create_test_user()
 
     cmd = [
         "det",
@@ -478,7 +478,7 @@ def create_linked_user(uid: int, user: str, gid: int, group: str) -> api.Session
 
 
 def create_linked_user_sdk(uid: int, agent_user: str, gid: int, group: str) -> api.Session:
-    sess, _ = api_utils.create_test_user(False)
+    sess, _ = api_utils.create_test_user()
     det_obj = client.Determined._from_session(api_utils.admin_session())
     user = det_obj.get_user_by_name(user_name=sess.username)
     user.link_with_agent(agent_gid=gid, agent_uid=uid, agent_group=group, agent_user=agent_user)
@@ -577,7 +577,7 @@ def test_non_root_experiment(tmp_path: pathlib.Path) -> None:
 
 @pytest.mark.e2e_cpu
 def test_link_without_agent_user() -> None:
-    sess, _ = api_utils.create_test_user(False)
+    sess, _ = api_utils.create_test_user()
 
     check_link_with_agent_output(sess, "root:0:root:0")
 
@@ -632,7 +632,7 @@ def test_experiment_delete() -> None:
 @pytest.mark.e2e_cpu
 @pytest.mark.e2e_cpu_postgres
 def test_change_displayname() -> None:
-    sess, _ = api_utils.create_test_user(False)
+    sess, _ = api_utils.create_test_user()
     original_name = sess.username
 
     det_obj = client.Determined._from_session(api_utils.admin_session())
@@ -671,7 +671,7 @@ def test_change_displayname() -> None:
 
 @pytest.mark.e2e_cpu
 def test_patch_agentusergroup() -> None:
-    sess, _ = api_utils.create_test_user(False)
+    sess, _ = api_utils.create_test_user()
 
     # Patch - normal.
     admin = api_utils.admin_session()
@@ -702,7 +702,7 @@ def test_patch_agentusergroup() -> None:
 @pytest.mark.e2e_cpu
 def test_user_edit() -> None:
     admin = api_utils.admin_session()
-    sess, _ = api_utils.create_test_user(False)
+    sess, _ = api_utils.create_test_user()
     original_name = sess.username
 
     det_obj = client.Determined._from_session(admin)
@@ -739,7 +739,7 @@ def test_user_edit() -> None:
 @pytest.mark.e2e_cpu
 def test_user_list() -> None:
     admin = api_utils.admin_session()
-    sess, _ = api_utils.create_test_user(False)
+    sess, _ = api_utils.create_test_user()
     output = detproc.check_output(admin, ["det", "user", "ls"])
     assert sess.username in output
 

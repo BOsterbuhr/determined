@@ -288,7 +288,6 @@ def test_model_rbac_deletes() -> None:
 
         # create cluster admin user
         cluster_admin, _ = api_utils.create_test_user(
-            add_password=True,
             user=bindings.v1User(username=get_random_string(), active=True, admin=False),
         )
         api_utils.assign_user_role(
@@ -300,7 +299,6 @@ def test_model_rbac_deletes() -> None:
 
         # create non-cluster admin user with OSS admin flag
         oss_admin, _ = api_utils.create_test_user(
-            add_password=True,
             user=bindings.v1User(username=get_random_string(), active=True, admin=True),
         )
 

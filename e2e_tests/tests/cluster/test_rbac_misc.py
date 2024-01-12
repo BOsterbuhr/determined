@@ -23,7 +23,6 @@ def test_cluster_admin_only_calls() -> None:
         ]
     ) as (_, creds):
         u_admin_role, _ = api_utils.create_test_user(
-            add_password=True,
             user=bindings.v1User(username=api_utils.get_random_string(), active=True, admin=False),
         )
         api_utils.assign_user_role(
@@ -32,7 +31,6 @@ def test_cluster_admin_only_calls() -> None:
 
         # normal determined admins without ClusterAdmin role.
         u_det_admin, _ = api_utils.create_test_user(
-            add_password=True,
             user=bindings.v1User(username=api_utils.get_random_string(), active=True, admin=True),
         )
 

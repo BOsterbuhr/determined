@@ -40,8 +40,8 @@ def filter_out_ntsc(
 @pytest.mark.e2e_cpu_rbac
 @api_utils.skipif_rbac_not_enabled()
 def test_notebook() -> None:
-    u_viewer_ws0, _ = api_utils.create_test_user(add_password=True)
-    u_editor_ws0, _ = api_utils.create_test_user(add_password=True)
+    u_viewer_ws0, _ = api_utils.create_test_user()
+    u_editor_ws0, _ = api_utils.create_test_user()
     admin = api_utils.admin_session()
 
     with test_workspace_org.setup_workspaces(count=2) as workspaces:

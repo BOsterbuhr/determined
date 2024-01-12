@@ -49,7 +49,6 @@ def get_random_string() -> str:
 
 
 def create_test_user(
-    add_password: bool = False,
     user: Optional[bindings.v1User] = None,
 ) -> Tuple[api.Session, str]:
     """
@@ -58,7 +57,7 @@ def create_test_user(
     session = admin_session()
     username = get_random_string()
     user = user or bindings.v1User(username=username, admin=False, active=True)
-    password = get_random_string() if add_password else ""
+    password = get_random_string()
     bindings.post_PostUser(session, body=bindings.v1PostUserRequest(user=user, password=password))
     sess = make_session(username, password)
     return sess, password
