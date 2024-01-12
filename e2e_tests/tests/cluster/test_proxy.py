@@ -94,7 +94,6 @@ def test_experiment_proxy_ray_tunnel() -> None:
             proc.terminate()
             proc.wait(10)
     finally:
-        sess = api_utils.admin_session()
         bindings.post_KillExperiment(sess, id=exp_id)
 
 
@@ -171,7 +170,6 @@ def test_experiment_proxy_ray_publish() -> None:
             _probe_tunnel(proc)
             _ray_job_submit(exp_path)
         finally:
-            sess = api_utils.admin_session()
             bindings.post_KillExperiment(sess, id=exp_id)
     finally:
         proc.terminate()

@@ -27,7 +27,7 @@ def test_basic_notebook_start_and_kill() -> None:
 
 @pytest.mark.e2e_cpu
 def test_notebook_proxy() -> None:
-    session = api_utils.admin_session()
+    session = api_utils.user_session()
 
     def get_proxy(session: api.Session, task_id: str) -> None:
         session.get(f"proxy/{task_id}/")
@@ -44,7 +44,7 @@ def test_notebook_proxy() -> None:
     )
     deets = api.get_ntsc_details(session, typ, created_id)
     assert deets.state == bindings.taskv1State.RUNNING, f"{typ} should be running"
-    err = api.wait_for_task_ready(api_utils.admin_session(), created_id)
+    err = api.wait_for_task_ready(session, created_id)
     assert err is None, f"{typ} should be ready {err}"
     print(deets)
     try:

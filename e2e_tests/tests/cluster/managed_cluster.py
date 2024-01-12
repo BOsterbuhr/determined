@@ -57,9 +57,9 @@ class ManagedCluster(abstract_cluster.Cluster):
         self.dc.kill_stage("agent1")
 
         WAIT_FOR_KILL = 5
-        admin = api_utils.admin_session()
+        sess = api_utils.user_session()
         for _i in range(WAIT_FOR_KILL):
-            agent_data = get_agent_data(admin)
+            agent_data = get_agent_data(sess)
             if len(agent_data) == 0:
                 break
             if len(agent_data) == 1 and agent_data[0]["draining"] is True:
@@ -69,8 +69,8 @@ class ManagedCluster(abstract_cluster.Cluster):
             pytest.fail(f"Agent is still present after {WAIT_FOR_KILL} seconds")
 
     def restart_agent(self, wait_for_amnesia: bool = True, wait_for_agent: bool = True) -> None:
-        admin = api_utils.admin_session()
-        agent_data = get_agent_data(admin)
+        sess = api_utils.user_session()
+        agent_data = get_agent_data(sess)
         if len(agent_data) == 1 and agent_data[0]["enabled"]:
             return
 
@@ -79,7 +79,7 @@ class ManagedCluster(abstract_cluster.Cluster):
             # Currently, we've got to wait for master to "forget" the agent before reconnecting.
             WAIT_FOR_AMNESIA = 60
             for _i in range(WAIT_FOR_AMNESIA):
-                agent_data = get_agent_data(admin)
+                agent_data = get_agent_data(sess)
                 if len(agent_data) == 0:
                     break
                 time.sleep(1)
@@ -96,11 +96,11 @@ class ManagedCluster(abstract_cluster.Cluster):
         subprocess.run(["killall", "socat"])
 
     def restart_proxy(self, wait_for_reconnect: bool = True) -> None:
-        admin = api_utils.admin_session()
+        sess = api_utils.user_session()
         self.dc.restart_stage("proxy")
         if wait_for_reconnect:
             for _i in range(25):
-                agent_data = get_agent_data(admin)
+                agent_data = get_agent_data(sess)
                 if (
                     len(agent_data) == 1
                     and agent_data[0]["enabled"] is True
@@ -112,16 +112,16 @@ class ManagedCluster(abstract_cluster.Cluster):
                 pytest.fail(f"Agent didn't reconnect after {_i} seconds")
 
     def ensure_agent_ok(self) -> None:
-        admin = api_utils.admin_session()
-        agent_data = get_agent_data(admin)
+        sess = api_utils.user_session()
+        agent_data = get_agent_data(sess)
         assert len(agent_data) == 1
         assert agent_data[0]["enabled"] is True
         assert agent_data[0]["draining"] is False
 
     def wait_for_agent_ok(self, ticks: int) -> None:
-        admin = api_utils.admin_session()
+        sess = api_utils.user_session()
         for _i in range(ticks):
-            agent_data = get_agent_data(admin)
+            agent_data = get_agent_data(sess)
             if (
                 len(agent_data) == 1
                 and agent_data[0]["enabled"] is True

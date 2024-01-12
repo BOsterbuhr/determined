@@ -72,11 +72,11 @@ class ManagedK8sCluster(abstract_cluster.Cluster):
             return
 
         # Wait for determined to be up.
-        admin = api_utils.admin_session()
+        sess = api_utils.user_session()
         WAIT_FOR_UP = 60
         for _ in range(WAIT_FOR_UP):
             try:
-                assert len(managed_cluster.get_agent_data(admin)) > 0
+                assert len(managed_cluster.get_agent_data(sess)) > 0
                 return
             except Exception as e:
                 print(f"Can't reach master, retrying again {e}")
@@ -86,10 +86,10 @@ class ManagedK8sCluster(abstract_cluster.Cluster):
 
 @pytest.fixture
 def k8s_managed_cluster() -> Iterator[ManagedK8sCluster]:
-    admin = api_utils.admin_session()
+    sess = api_utils.user_session()
     cluster = ManagedK8sCluster()
     cluster._scale_master(up=True)
     yield cluster
     cluster._scale_master(up=True)
 
-    print("Master logs: ", detproc.check_output(admin, ["det", "master", "logs"]))
+    print("Master logs: ", detproc.check_output(sess, ["det", "master", "logs"]))
