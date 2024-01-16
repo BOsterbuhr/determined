@@ -40,14 +40,6 @@ func Schedule(config model.LogRetentionPolicy, db *db.PgDB) error {
 			log.WithField("count", count).Info("deleted expired task logs")
 		}
 	})
-	// If cleanup on start is enabled, run the cleanup task immediately.
-	if config.CleanupOnStart != nil && *config.CleanupOnStart {
-		log.Debug("running task log cleanup on start")
-		_, err := scheduler.NewJob(gocron.OneTimeJob(gocron.OneTimeJobStartImmediately()), task)
-		if err != nil {
-			return errors.Wrapf(err, "failed to schedule startup task log cleanup")
-		}
-	}
 	// If a cleanup schedule is set, schedule the cleanup task.
 	if config.Schedule != nil {
 		if d, err := time.ParseDuration(*config.Schedule); err == nil {

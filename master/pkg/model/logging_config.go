@@ -26,8 +26,6 @@ type LogRetentionPolicy struct {
 	Days *int16 `json:"days"`
 	// Schedule is a time duration or cron expression interval to cleanup logs.
 	Schedule *string `json:"schedule"`
-	// CleanupOnStart is whether to cleanup logs on startup.
-	CleanupOnStart *bool `json:"cleanup_on_start"`
 }
 
 // Resolve resolves the parts of the TaskContainerDefaultsConfig that must be evaluated on

@@ -52,7 +52,6 @@ stages:
           retention:
             days: 1
             schedule: 1m
-            cleanup_on_start: true
         enable_cors: true
         observability:
           enable_prometheus: true
