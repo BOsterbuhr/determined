@@ -121,8 +121,8 @@ func DefaultConfig() *Config {
 		EnableCors:  false,
 		LaunchError: true,
 		ClusterName: "",
-		Logging: model.LoggingConfig{
-			DefaultLoggingConfig: &model.DefaultLoggingConfig{},
+		Logging: model.LoggingConfigPolicy{
+			LoggingConfig: model.LoggingConfig{DefaultLoggingConfig: &model.DefaultLoggingConfig{}},
 		},
 		// For developers this should be a writable directory for caching files.
 		Cache: CacheConfig{
@@ -152,7 +152,7 @@ type Config struct {
 	EnableCors            bool                              `json:"enable_cors"`
 	LaunchError           bool                              `json:"launch_error"`
 	ClusterName           string                            `json:"cluster_name"`
-	Logging               model.LoggingConfig               `json:"logging"`
+	Logging               model.LoggingConfigPolicy         `json:"logging"`
 	Observability         ObservabilityConfig               `json:"observability"`
 	Cache                 CacheConfig                       `json:"cache"`
 	Webhooks              WebhooksConfig                    `json:"webhooks"`

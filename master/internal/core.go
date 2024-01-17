@@ -1050,7 +1050,7 @@ func (m *Master) Run(ctx context.Context, gRPCLogInitDone chan struct{}) error {
 		&m.config.TaskContainerDefaults,
 		&aproto.MasterSetAgentOptions{
 			MasterInfo:     m.Info(),
-			LoggingOptions: m.config.Logging,
+			LoggingOptions: m.config.Logging.LoggingConfig,
 		},
 		cert,
 	)

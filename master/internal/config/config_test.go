@@ -442,8 +442,8 @@ task_container_defaults:
 `, s3Key, s3Secret, masterSecret, webuiSecret, registryAuthSecret)
 
 	expected := Config{
-		Logging: model.LoggingConfig{
-			DefaultLoggingConfig: &model.DefaultLoggingConfig{},
+		Logging: model.LoggingConfigPolicy{
+			LoggingConfig: model.LoggingConfig{DefaultLoggingConfig: &model.DefaultLoggingConfig{}},
 		},
 		DB: DBConfig{
 			User:     "config_file_user",
@@ -474,8 +474,8 @@ task_container_defaults:
 	}
 
 	unmarshaled := Config{
-		Logging: model.LoggingConfig{
-			DefaultLoggingConfig: &model.DefaultLoggingConfig{},
+		Logging: model.LoggingConfigPolicy{
+			LoggingConfig: model.LoggingConfig{DefaultLoggingConfig: &model.DefaultLoggingConfig{}},
 		},
 	}
 	err := yaml.Unmarshal([]byte(raw), &unmarshaled, yaml.DisallowUnknownFields)

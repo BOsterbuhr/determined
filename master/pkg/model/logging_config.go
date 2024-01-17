@@ -17,7 +17,12 @@ import (
 type LoggingConfig struct {
 	DefaultLoggingConfig *DefaultLoggingConfig `union:"type,default" json:"-"`
 	ElasticLoggingConfig *ElasticLoggingConfig `union:"type,elastic" json:"-"`
-	Retention            *LogRetentionPolicy   `json:"retention"`
+}
+
+// LoggingConfigPolicy includes a LoggingConfig and LogRetentionPolicy.
+type LoggingConfigPolicy struct {
+	LoggingConfig
+	Retention *LogRetentionPolicy `json:"retention"`
 }
 
 // LogRetentionPolicy configures the default log retention policy for trials and tasks.
