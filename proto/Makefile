@@ -75,7 +75,7 @@ gen-buf-image:
 check: check-fmt build/proto.stamp
 	buf lint
 	buf breaking --against $(buf_image)
-	git diff --quiet pkg/
+	git diff pkg/
 
 .PHONY: check-fmt
 check-fmt:
