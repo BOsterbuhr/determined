@@ -1,5 +1,6 @@
 import itertools
 import os
+import pathlib
 import time
 from typing import Optional
 
@@ -20,7 +21,7 @@ def _create_task(**config) -> str:
     config_text = util.yaml_safe_dump(config)
 
     # TODO(ilia): try `inheritContext` instead.
-    context_directory = context.read_v1_context(os.getcwd())
+    context_directory = context.read_v1_context(pathlib.Path(os.getcwd()))
 
     parent_id = os.environ["DET_TASK_ID"]
 
@@ -28,6 +29,8 @@ def _create_task(**config) -> str:
         config=config_text,
         contextDirectory=context_directory,
         parentId=parent_id,
+        # TODO(ilia): Make project id optional, inherit from the parent for child tasks.
+        projectId=1,
     )
 
     task_resp = bindings.post_CreateGenericTask(sess, body=req)
@@ -36,6 +39,7 @@ def _create_task(**config) -> str:
 
 
 def _wait(task_id: str, timeout: Optional[float] = 60) -> None:
+    print(f"start waiting for {task_id}")
     client = experimental.Determined()
     sess = client._session
 
@@ -44,7 +48,12 @@ def _wait(task_id: str, timeout: Optional[float] = 60) -> None:
     for i in itertools.count(0):
         resp = bindings.get_GetTask(sess, taskId=task_id)
         state = resp.task.taskState
-        TERMINAL_STATES = ["CANCELED", "COMPLETED", "ERROR"]
+        print(state)
+        TERMINAL_STATES = [
+            bindings.v1GenericTaskState.COMPLETED,
+            bindings.v1GenericTaskState.CANCELED,
+            bindings.v1GenericTaskState.ERROR,
+        ]
         if state in TERMINAL_STATES:
             return state
 
@@ -58,6 +67,7 @@ def launch_worker(rank: int, world_size: int) -> str:
     config = {
         "entrypoint": ["python", "mapper.py"],
         "resources": {
+            # TODO(ilia): did this get ignored?
             "slots": 0,
         },
         "environment": {
@@ -72,7 +82,7 @@ def launch_worker(rank: int, world_size: int) -> str:
 
 def main():
     ds = _data.get_dataset()
-    world_size = max(ds.n_shards, MAX_WORKERS)
+    world_size = max(getattr(ds, "n_shards", 0), MAX_WORKERS)
 
     workers = []
     for rank in range(0, world_size):
@@ -81,12 +91,12 @@ def main():
 
     for task_id in workers:
         state = _wait(task_id, timeout=60)
-        if state == "COMPLETED":
+        if state == bindings.v1GenericTaskState.COMPLETED:
             # TODO(ilia): get the results via a run/checkpoint.
             pass
-        elif state == "ERROR":
+        elif state == bindings.v1GenericTaskState.ERROR:
             raise RuntimeError(f"uh-oh, child task {task_id} has failed")
-        elif state == "CANCELED":
+        elif state == bindings.v1GenericTaskState.CANCELED:
             raise RuntimeError(f"uh-oh, child task {task_id} has been cancelled which is unsupported")
         else:
             raise RuntimeError(f"uh-oh, child task {task_id} has returned unknown state: {state}")

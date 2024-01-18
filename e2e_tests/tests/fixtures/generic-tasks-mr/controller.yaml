@@ -1,2 +1,2 @@
-entrypoint: ["python", controller.py"]
+entrypoint: ["python", "controller.py"]
 slots: 0
