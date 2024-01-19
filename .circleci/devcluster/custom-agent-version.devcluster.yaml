@@ -34,7 +34,7 @@ stages:
             set -ex
             mkdir -p /tmp/det
             cat >/tmp/det/agent.yaml <<EOF
-            master_host: 127.0.0.1
+            master_host: host.docker.internal
             master_port: 8080
             agent_id: agent
             container_master_host: $DOCKER_LOCALHOST
