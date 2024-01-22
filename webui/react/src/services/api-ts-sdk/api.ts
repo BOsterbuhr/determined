@@ -1716,7 +1716,7 @@ export interface V1Checkpoint {
      */
     training: V1CheckpointTrainingMetadata;
     /**
-     * Optional ID that describes where this checkpoint is stored.
+     * Optional ID that describes where this checkpoint is stored. It will be null on every checkpoint pre 0.27.1. It can also be null when a user does not specify the storageID calling the report API themselves or when users don't provide a storage config to core_context.
      * @type {number}
      * @memberof V1Checkpoint
      */
