@@ -935,7 +935,7 @@ func (m *Master) Run(ctx context.Context, gRPCLogInitDone chan struct{}) error {
 	switch {
 	case m.config.Logging.DefaultLoggingConfig != nil:
 		m.trialLogBackend = m.db
-		m.taskLogBackend = m.db
+		m.taskLogBackend = m.db // TODO CAROLINA -- this will be gnarly to untangle.
 	case m.config.Logging.ElasticLoggingConfig != nil:
 		es, eErr := elastic.Setup(*m.config.Logging.ElasticLoggingConfig)
 		if eErr != nil {

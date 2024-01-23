@@ -303,23 +303,6 @@ func RequireGetProjectHParams(t *testing.T, db *PgDB, projectID int) []string {
 	return p.Hyperparameters
 }
 
-// RequireMockTask returns a mock task.
-func RequireMockTask(t *testing.T, db *PgDB, userID *model.UserID) *model.Task {
-	jID := RequireMockJob(t, db, userID)
-
-	// Add a task.
-	tID := model.NewTaskID()
-	tIn := &model.Task{
-		TaskID:    tID,
-		JobID:     &jID,
-		TaskType:  model.TaskTypeTrial,
-		StartTime: time.Now().UTC().Truncate(time.Millisecond),
-	}
-	err := AddTask(context.Background(), tIn)
-	require.NoError(t, err, "failed to add task")
-	return tIn
-}
-
 // RequireMockUser requires a mock model.
 func RequireMockUser(t *testing.T, db *PgDB) model.User {
 	user := model.User{

@@ -202,3 +202,88 @@ func TestExhaustiveEnums(t *testing.T) {
 		require.JSONEq(t, string(pb), string(gb))
 	}
 }
+
+func TestAddTask(t *testing.T) {
+
+}
+
+func TestTaskByID(t *testing.T) {
+
+}
+
+func TestAddNonExperimentTasksContextDirectory(t *testing.T) {
+
+}
+
+func TestTaskCompleted(t *testing.T) {
+
+}
+
+func TestCompleteTask(t *testing.T) {
+
+}
+
+func TestAddAllocation(t *testing.T) {
+
+}
+
+func TestAddAllocationExitStatus(t *testing.T) {
+
+}
+
+func TestCompleteAllocation(t *testing.T) {
+
+}
+
+func TestCompleteAllocationTelemetry(t *testing.T) {
+
+}
+
+func TestCloseOpenAllocations(t *testing.T) {
+
+}
+
+func TestTaskLogs(t *testing.T) {
+
+}
+
+func TestAddTaskLogs(t *testing.T) {
+
+}
+
+func TestDeleteTaskLogs(t *testing.T) {
+
+}
+
+func TestTaskLogCounts(t *testing.T) {
+
+}
+
+func TestRecordTaskEndStatsBun(t *testing.T) {
+
+}
+
+func TestEndAllTaskStats(t *testing.T) {
+
+}
+
+func TestTaskLogsFields(t *testing.T) {
+
+}
+
+// RequireMockTask returns a mock task.
+func RequireMockTask(t *testing.T, db *PgDB, userID *model.UserID) *model.Task {
+	jID := RequireMockJob(t, db, userID)
+
+	// Add a task.
+	tID := model.NewTaskID()
+	tIn := &model.Task{
+		TaskID:    tID,
+		JobID:     &jID,
+		TaskType:  model.TaskTypeTrial,
+		StartTime: time.Now().UTC().Truncate(time.Millisecond),
+	}
+	err := AddTask(context.Background(), tIn)
+	require.NoError(t, err, "failed to add task")
+	return tIn
+}
