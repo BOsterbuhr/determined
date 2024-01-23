@@ -1,4 +1,1 @@
 entrypoint: ["python3", "run.py"]
-environment:
-  environment_variables:
-    HERPDERP: test
