@@ -5064,6 +5064,25 @@ export interface V1KillExperimentsResponse {
 /**
  * 
  * @export
+ * @interface V1KillGenericTaskRequest
+ */
+export interface V1KillGenericTaskRequest {
+    /**
+     * The id of the task.
+     * @type {string}
+     * @memberof V1KillGenericTaskRequest
+     */
+    taskId: string;
+    /**
+     * Kill entire task tree
+     * @type {boolean}
+     * @memberof V1KillGenericTaskRequest
+     */
+    killFromRoot?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface V1KillGenericTaskResponse
  */
 export interface V1KillGenericTaskResponse {
@@ -18588,13 +18607,18 @@ export const InternalApiFetchParamCreator = function (configuration?: Configurat
          * 
          * @summary Kill generic task
          * @param {string} taskId The id of the task.
+         * @param {V1KillGenericTaskRequest} body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        killGenericTask(taskId: string, options: any = {}): FetchArgs {
+        killGenericTask(taskId: string, body: V1KillGenericTaskRequest, options: any = {}): FetchArgs {
             // verify required parameter 'taskId' is not null or undefined
             if (taskId === null || taskId === undefined) {
                 throw new RequiredError('taskId','Required parameter taskId was null or undefined when calling killGenericTask.');
+            }
+            // verify required parameter 'body' is not null or undefined
+            if (body === null || body === undefined) {
+                throw new RequiredError('body','Required parameter body was null or undefined when calling killGenericTask.');
             }
             const localVarPath = `/api/v1/tasks/{taskId}/kill`
                 .replace(`{${"taskId"}}`, encodeURIComponent(String(taskId)));
@@ -18611,9 +18635,12 @@ export const InternalApiFetchParamCreator = function (configuration?: Configurat
                 localVarHeaderParameter["Authorization"] = localVarApiKeyValue;
             }
             
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            
             objToSearchParams(localVarQueryParameter, localVarUrlObj.searchParams);
             objToSearchParams(options.query || {}, localVarUrlObj.searchParams);
             localVarRequestOptions.headers = { ...localVarHeaderParameter, ...options.headers };
+            localVarRequestOptions.body = JSON.stringify(body)
             
             return {
                 url: `${localVarUrlObj.pathname}${localVarUrlObj.search}`,
@@ -20707,11 +20734,12 @@ export const InternalApiFp = function (configuration?: Configuration) {
          * 
          * @summary Kill generic task
          * @param {string} taskId The id of the task.
+         * @param {V1KillGenericTaskRequest} body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        killGenericTask(taskId: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<V1KillGenericTaskResponse> {
-            const localVarFetchArgs = InternalApiFetchParamCreator(configuration).killGenericTask(taskId, options);
+        killGenericTask(taskId: string, body: V1KillGenericTaskRequest, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<V1KillGenericTaskResponse> {
+            const localVarFetchArgs = InternalApiFetchParamCreator(configuration).killGenericTask(taskId, body, options);
             return (fetch: FetchAPI = window.fetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -21732,11 +21760,12 @@ export const InternalApiFactory = function (configuration?: Configuration, fetch
          * 
          * @summary Kill generic task
          * @param {string} taskId The id of the task.
+         * @param {V1KillGenericTaskRequest} body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        killGenericTask(taskId: string, options?: any) {
-            return InternalApiFp(configuration).killGenericTask(taskId, options)(fetch, basePath);
+        killGenericTask(taskId: string, body: V1KillGenericTaskRequest, options?: any) {
+            return InternalApiFp(configuration).killGenericTask(taskId, body, options)(fetch, basePath);
         },
         /**
          * 
@@ -22549,12 +22578,13 @@ export class InternalApi extends BaseAPI {
      * 
      * @summary Kill generic task
      * @param {string} taskId The id of the task.
+     * @param {V1KillGenericTaskRequest} body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof InternalApi
      */
-    public killGenericTask(taskId: string, options?: any) {
-        return InternalApiFp(this.configuration).killGenericTask(taskId, options)(this.fetch, this.basePath)
+    public killGenericTask(taskId: string, body: V1KillGenericTaskRequest, options?: any) {
+        return InternalApiFp(this.configuration).killGenericTask(taskId, body, options)(this.fetch, this.basePath)
     }
     
     /**

@@ -6905,6 +6905,36 @@ class v1KillExperimentsResponse(Printable):
         }
         return out
 
+class v1KillGenericTaskRequest(Printable):
+    killFromRoot: "typing.Optional[bool]" = None
+
+    def __init__(
+        self,
+        *,
+        taskId: str,
+        killFromRoot: "typing.Union[bool, None, Unset]" = _unset,
+    ):
+        self.taskId = taskId
+        if not isinstance(killFromRoot, Unset):
+            self.killFromRoot = killFromRoot
+
+    @classmethod
+    def from_json(cls, obj: Json) -> "v1KillGenericTaskRequest":
+        kwargs: "typing.Dict[str, typing.Any]" = {
+            "taskId": obj["taskId"],
+        }
+        if "killFromRoot" in obj:
+            kwargs["killFromRoot"] = obj["killFromRoot"]
+        return cls(**kwargs)
+
+    def to_json(self, omit_unset: bool = False) -> typing.Dict[str, typing.Any]:
+        out: "typing.Dict[str, typing.Any]" = {
+            "taskId": self.taskId,
+        }
+        if not omit_unset or "killFromRoot" in vars(self):
+            out["killFromRoot"] = self.killFromRoot
+        return out
+
 class v1KillNotebookResponse(Printable):
     """Response to KillNotebookRequest."""
     notebook: "typing.Optional[v1Notebook]" = None
@@ -19145,6 +19175,7 @@ def post_KillExperiments(
 def post_KillGenericTask(
     session: "api.Session",
     *,
+    body: "v1KillGenericTaskRequest",
     taskId: str,
 ) -> None:
     """Kill generic task
@@ -19158,7 +19189,7 @@ def post_KillGenericTask(
         method="POST",
         path=f"/api/v1/tasks/{taskId}/kill",
         params=_params,
-        json=None,
+        json=body.to_json(True),
         data=None,
         headers=None,
         timeout=None,

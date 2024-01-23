@@ -1,2 +1,3 @@
 entrypoint: ["python", "controller.py"]
-slots: 0
+resources:
+  slots: 0

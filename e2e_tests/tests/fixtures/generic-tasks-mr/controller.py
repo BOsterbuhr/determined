@@ -58,6 +58,8 @@ def _wait(task_id: str, timeout: Optional[float] = 60) -> None:
             return state
 
         if timeout > 0 and (time.time() - start > timeout):
+            bindings.post_KillGenericTask(sess, taskId=task_id, body=bindings.v1KillGenericTaskRequest(taskId=task_id))
+            print(f"Killed task {task_id}")
             raise RuntimeError(f"timed out waiting for task {task_id} after {i} ticks")
 
         time.sleep(1.)
@@ -67,14 +69,13 @@ def launch_worker(rank: int, world_size: int) -> str:
     config = {
         "entrypoint": ["python", "mapper.py"],
         "resources": {
-            # TODO(ilia): did this get ignored?
-            "slots": 0,
+            "slots": 1,
         },
         "environment": {
-            "environment_variables": {
-                "RANK": str(rank),
-                "WORLD_SIZE": str(world_size),
-            },
+            "environment_variables": [
+                f"RANK={rank}",
+                f"WORLD_SIZE={world_size}",
+            ],
         },
     }
     return _create_task(**config)
