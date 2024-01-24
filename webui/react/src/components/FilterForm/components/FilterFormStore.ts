@@ -56,40 +56,26 @@ export class FilterFormStore {
     return this.#formset.readOnly();
   }
 
-  public get asJsonString(): Observable<string> {
+  public get asJsonString(): (includeNulls?: boolean) => Observable<string> {
     const replacer = (key: string, value: unknown): unknown => {
       return key === 'id' ? undefined : value;
     };
-    return this.#formset.select((loadableFormset) =>
-      Loadable.match(loadableFormset, {
-        _: () => '',
-        Loaded: (formset) => {
-          const sweepedForm = this.#sweepInvalid(structuredClone(formset.filterGroup));
-          const newFormSet: FilterFormSetWithoutId = JSON.parse(
-            JSON.stringify({ ...formset, filterGroup: sweepedForm }, replacer),
-          );
-          return JSON.stringify(newFormSet);
-        },
-      }),
-    );
-  }
-
-  public get asSettingsString(): Observable<string> {
-    const replacer = (key: string, value: unknown): unknown => {
-      return key === 'id' ? undefined : value;
-    };
-    return this.#formset.select((loadableFormset) =>
-      Loadable.match(loadableFormset, {
-        _: () => '',
-        Loaded: (formset) => {
-          const sweepedForm = this.#sweepInvalid(structuredClone(formset.filterGroup), true);
-          const newFormSet: FilterFormSetWithoutId = JSON.parse(
-            JSON.stringify({ ...formset, filterGroup: sweepedForm }, replacer),
-          );
-          return JSON.stringify(newFormSet);
-        },
-      }),
-    );
+    return (includeNulls: boolean = false) =>
+      this.#formset.select((loadableFormset) =>
+        Loadable.match(loadableFormset, {
+          _: () => '',
+          Loaded: (formset) => {
+            const sweepedForm = this.#sweepInvalid(
+              structuredClone(formset.filterGroup),
+              includeNulls,
+            );
+            const newFormSet: FilterFormSetWithoutId = JSON.parse(
+              JSON.stringify({ ...formset, filterGroup: sweepedForm }, replacer),
+            );
+            return JSON.stringify(newFormSet);
+          },
+        }),
+      );
   }
 
   public get fieldCount(): Observable<number> {

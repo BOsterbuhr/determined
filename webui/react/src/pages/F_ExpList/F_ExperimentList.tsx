@@ -123,7 +123,7 @@ const F_ExperimentList: React.FC<Props> = ({ project }) => {
   const [projectColumns, setProjectColumns] = useState<Loadable<ProjectColumn[]>>(NotLoaded);
   const [projectHeatmap, setProjectHeatmap] = useState<ProjectMetricsRange[]>([]);
   const [isOpenFilter, setIsOpenFilter] = useState<boolean>(false);
-  const filtersString = useObservable(formStore.asJsonString);
+  const filtersString = useObservable(formStore.asJsonString());
   const loadableFormset = useObservable(formStore.formset);
   const rootFilterChildren: Array<FormGroup | FormField> = Loadable.match(loadableFormset, {
     _: () => [],
@@ -402,7 +402,8 @@ const F_ExperimentList: React.FC<Props> = ({ project }) => {
   }, [canceler, stopPolling]);
 
   useEffect(() => {
-    return formStore.asSettingsString.subscribe(() => {
+    // permit null values in saved settings
+    return formStore.asJsonString(true).subscribe(() => {
       resetPagination();
       const loadableFormset = formStore.formset.get();
       Loadable.forEach(loadableFormset, (formSet) =>
