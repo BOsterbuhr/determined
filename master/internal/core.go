@@ -931,7 +931,6 @@ func (m *Master) Run(ctx context.Context, gRPCLogInitDone chan struct{}) error {
 		SegmentAPIKey:         m.config.Telemetry.SegmentMasterKey,
 	}
 	if m.config.Logging.Retention != nil {
-		m.taskSpec.LogRetentionDays = m.config.Logging.Retention.Days
 		if err := logretention.Schedule(*m.config.Logging.Retention, m.db); err != nil {
 			return errors.Wrap(err, "initializing log retention")
 		}

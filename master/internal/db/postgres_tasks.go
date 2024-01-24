@@ -451,7 +451,7 @@ DELETE FROM task_logs
 WHERE task_id IN (
 	SELECT task_id FROM log_retention_tasks
 	WHERE current_retention_days >= 0
-		AND end_time < ( current_date - current_retention_days ) + current_time
+		AND end_time < ( current_timestamp - make_interval(days => current_retention_days) )
 )
 `, defaultLogRetentionDays))
 	if err != nil {

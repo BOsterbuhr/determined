@@ -11,6 +11,8 @@ import (
 	"github.com/determined-ai/determined/master/pkg/model"
 )
 
+const retainForever = -1
+
 var log = logrus.WithField("component", "log-retention")
 
 var scheduler gocron.Scheduler
@@ -26,7 +28,7 @@ func init() {
 
 // Schedule begins a log deletion schedule according to the provided LogRetentionPolicy.
 func Schedule(config model.LogRetentionPolicy, db *db.PgDB) error {
-	var defaultLogRetentionDays int16 = -1
+	var defaultLogRetentionDays int16 = retainForever
 	if config.Days != nil {
 		defaultLogRetentionDays = *config.Days
 	}
