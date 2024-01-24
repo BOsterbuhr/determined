@@ -185,7 +185,7 @@ func setup(t *testing.T) (
 	pgDB := db.MustSetupTestPostgres(t)
 
 	// instantiate the allocation
-	task := db.RequireMockTask(t, pgDB, nil)
+	task := db.RequireMockTask(t)
 
 	ar := sproto.AllocateRequest{
 		TaskID:       task.TaskID,
