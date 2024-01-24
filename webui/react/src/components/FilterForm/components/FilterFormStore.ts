@@ -74,6 +74,24 @@ export class FilterFormStore {
     );
   }
 
+  public get asSettingsString(): Observable<string> {
+    const replacer = (key: string, value: unknown): unknown => {
+      return key === 'id' ? undefined : value;
+    };
+    return this.#formset.select((loadableFormset) =>
+      Loadable.match(loadableFormset, {
+        _: () => '',
+        Loaded: (formset) => {
+          const sweepedForm = this.#sweepInvalid(structuredClone(formset.filterGroup), true);
+          const newFormSet: FilterFormSetWithoutId = JSON.parse(
+            JSON.stringify({ ...formset, filterGroup: sweepedForm }, replacer),
+          );
+          return JSON.stringify(newFormSet);
+        },
+      }),
+    );
+  }
+
   public get fieldCount(): Observable<number> {
     return this.getFieldCount();
   }
@@ -102,12 +120,13 @@ export class FilterFormStore {
     );
   }
 
-  #isValid(form: Readonly<FormGroup | FormField>): boolean {
+  #isValid(form: Readonly<FormGroup | FormField>, allowNulls: boolean): boolean {
     if (form.kind === FormKind.Field) {
       return (
         form.operator === Operator.IsEmpty ||
         form.operator === Operator.NotEmpty ||
-        form.value != null
+        allowNulls ||
+        form.value !== null
       );
     } else {
       return form.children.length > 0;
@@ -115,15 +134,17 @@ export class FilterFormStore {
   }
 
   // remove invalid groups and conditions
-  #sweepInvalid = (form: FormGroup): Readonly<FormGroup> => {
+  #sweepInvalid = (form: FormGroup, allowNulls: boolean = false): Readonly<FormGroup> => {
     const sweepRecur = (form: FormGroup): Readonly<FormGroup> => {
-      const children = form.children.filter(this.#isValid); // remove unused groups and conditions
+      const children = form.children.filter((f: FormGroup | FormField) =>
+        this.#isValid(f, allowNulls),
+      ); // remove unused groups and conditions
       for (let child of children) {
         if (child.kind === FormKind.Group) {
           child = sweepRecur(child); // recursively remove groups and conditions
         }
       }
-      form.children = children.filter(this.#isValid); // double check for groups
+      form.children = children.filter((f: FormGroup | FormField) => this.#isValid(f, allowNulls)); // double check for groups
       return form;
     };
 

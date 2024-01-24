@@ -402,7 +402,7 @@ const F_ExperimentList: React.FC<Props> = ({ project }) => {
   }, [canceler, stopPolling]);
 
   useEffect(() => {
-    return formStore.asJsonString.subscribe(() => {
+    return formStore.asSettingsString.subscribe(() => {
       resetPagination();
       const loadableFormset = formStore.formset.get();
       Loadable.forEach(loadableFormset, (formSet) =>
