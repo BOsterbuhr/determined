@@ -36,6 +36,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/job/jobservice"
 	"github.com/determined-ai/determined/master/internal/prom"
 	"github.com/determined-ai/determined/master/internal/sproto"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/internal/trials"
 	"github.com/determined-ai/determined/master/internal/user"
 	"github.com/determined-ai/determined/master/internal/workspace"
@@ -2332,7 +2333,7 @@ func (a *apiServer) GetTaskContextDirectory(
 				req.TaskId, err)
 		}
 	} else {
-		tgz, err = db.NonExperimentTasksContextDirectory(ctx, model.TaskID(req.TaskId))
+		tgz, err = taskutils.NonExperimentTasksContextDirectory(ctx, model.TaskID(req.TaskId))
 		if err != nil {
 			return nil, fmt.Errorf(
 				"fetching taskID %s context directory from database: %s", req.TaskId, err)
@@ -2737,7 +2738,7 @@ func (a *apiServer) createTrialTx(
 		nil,
 		0)
 
-	if err := db.AddTask(context.Background(), &model.Task{
+	if err := taskutils.AddTask(context.Background(), &model.Task{
 		TaskID:     taskID,
 		TaskType:   model.TaskTypeTrial,
 		StartTime:  time.Now(),

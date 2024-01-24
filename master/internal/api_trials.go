@@ -24,6 +24,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/grpcutil"
 	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/task"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/internal/trials"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/protoutils"
@@ -146,7 +147,7 @@ func (a *apiServer) TrialLogs(
 	}
 	var tasks []*model.Task
 	for _, t := range trialTaskIDs {
-		task, err := db.TaskByID(resp.Context(), t.TaskID)
+		task, err := taskutils.TaskByID(resp.Context(), t.TaskID)
 		if err != nil {
 			return fmt.Errorf("getting task version for trial logs for task ID %s: %w", t.TaskID, err)
 		}

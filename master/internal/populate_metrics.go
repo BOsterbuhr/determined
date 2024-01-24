@@ -11,6 +11,7 @@ import (
 
 	"github.com/determined-ai/determined/master/internal/config"
 	"github.com/determined-ai/determined/master/internal/db"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
 	"github.com/determined-ai/determined/master/pkg/schemas"
@@ -250,7 +251,7 @@ func PopulateExpTrialsMetrics(pgdb *db.PgDB, masterConfig *config.Config, trivia
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
-	if err = db.AddTask(context.Background(), tIn); err != nil {
+	if err = taskutils.AddTask(context.Background(), tIn); err != nil {
 		return err
 	}
 

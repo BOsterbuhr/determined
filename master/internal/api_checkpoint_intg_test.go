@@ -21,6 +21,7 @@ import (
 	apiPkg "github.com/determined-ai/determined/master/internal/api"
 	authz2 "github.com/determined-ai/determined/master/internal/authz"
 	"github.com/determined-ai/determined/master/internal/db"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
 	"github.com/determined-ai/determined/proto/pkg/apiv1"
@@ -32,22 +33,22 @@ import (
 func createVersionTwoCheckpoint(
 	ctx context.Context, t *testing.T, api *apiServer, curUser model.User, resources map[string]int64,
 ) string {
-	_, task := createTestTrial(t, api, curUser)
+	_, testTask := createTestTrial(t, api, curUser)
 
-	aID := model.AllocationID(string(task.TaskID) + "-1")
+	aID := model.AllocationID(string(testTask.TaskID) + "-1")
 	aIn := &model.Allocation{
 		AllocationID: aID,
-		TaskID:       task.TaskID,
+		TaskID:       testTask.TaskID,
 		Slots:        1,
 		ResourcePool: "somethingelse",
 		StartTime:    ptrs.Ptr(time.Now().UTC().Truncate(time.Millisecond)),
 	}
-	require.NoError(t, api.m.db.AddAllocation(aIn))
+	require.NoError(t, taskutils.AddAllocation(aIn))
 
 	checkpoint := &model.CheckpointV2{
 		ID:           0,
 		UUID:         uuid.New(),
-		TaskID:       task.TaskID,
+		TaskID:       testTask.TaskID,
 		AllocationID: &aID,
 		ReportTime:   time.Now(),
 		State:        model.ActiveState,

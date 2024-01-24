@@ -18,6 +18,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/task/allgather"
 	"github.com/determined-ai/determined/master/internal/task/preemptible"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	detLogger "github.com/determined-ai/determined/master/pkg/logger"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/tasks"
@@ -148,7 +149,7 @@ func (as *allocationService) SetAcceleratorData(
 	ctx context.Context,
 	accData model.AcceleratorData,
 ) error {
-	if err := AddAllocationAcceleratorData(ctx, accData); err != nil {
+	if err := taskutils.AddAllocationAcceleratorData(ctx, accData); err != nil {
 		return err
 	}
 	return nil
@@ -159,7 +160,7 @@ func (as *allocationService) GetAllocation(
 	ctx context.Context,
 	allocationID string,
 ) (*model.Allocation, error) {
-	allocation, err := getAllocation(ctx, allocationID)
+	allocation, err := taskutils.GetAllocation(ctx, allocationID)
 	if err != nil {
 		return nil, err
 	}

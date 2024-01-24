@@ -22,6 +22,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/task"
 
 	"github.com/determined-ai/determined/master/internal/task/tasklogger"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/logger"
 	"github.com/determined-ai/determined/master/pkg/mathx"
 	"github.com/determined-ai/determined/master/pkg/model"
@@ -474,7 +475,7 @@ func (t *trial) maybeAllocateTask() error {
 }
 
 func (t *trial) addTask() error {
-	return db.AddTask(context.Background(), &model.Task{
+	return taskutils.AddTask(context.Background(), &model.Task{
 		TaskID:     t.taskID,
 		TaskType:   model.TaskTypeTrial,
 		StartTime:  t.jobSubmissionTime, // TODO: Why is this the job submission time..?

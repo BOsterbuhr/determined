@@ -25,6 +25,7 @@ import (
 	apiPkg "github.com/determined-ai/determined/master/internal/api"
 	authz2 "github.com/determined-ai/determined/master/internal/authz"
 	"github.com/determined-ai/determined/master/internal/db"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/internal/trials"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
@@ -46,7 +47,7 @@ func createTestTrial(
 		StartTime:  time.Now(),
 		TaskID:     trialTaskID(exp.ID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task))
+	require.NoError(t, taskutils.AddTask(context.Background(), task))
 
 	trial := &model.Trial{
 		StartTime:    time.Now(),
@@ -751,7 +752,7 @@ func TestTrialProtoTaskIDs(t *testing.T) {
 		StartTime:  task0.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task1))
+	require.NoError(t, taskutils.AddTask(context.Background(), task1))
 
 	task2 := &model.Task{
 		TaskType:   model.TaskTypeTrial,
@@ -759,7 +760,7 @@ func TestTrialProtoTaskIDs(t *testing.T) {
 		StartTime:  task1.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task2))
+	require.NoError(t, taskutils.AddTask(context.Background(), task2))
 
 	_, err = db.Bun().NewInsert().Model(&[]model.TrialTaskID{
 		{TrialID: trial.ID, TaskID: task1.TaskID},
@@ -834,7 +835,7 @@ func TestExperimentIDFromTrialTaskID(t *testing.T) {
 		StartTime:  time.Now(),
 		TaskID:     model.TaskID(uuid.New().String()),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task))
+	require.NoError(t, taskutils.AddTask(context.Background(), task))
 	_, err = experimentIDFromTrialTaskID(notTrialTask.TaskID)
 	require.ErrorIs(t, err, errIsNotTrialTaskID)
 
@@ -852,7 +853,7 @@ func TestTrialLogsBackported(t *testing.T) {
 		StartTime:  time.Now(),
 		TaskID:     model.TaskID(fmt.Sprintf("backported.%d", exp.ID)),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task))
+	require.NoError(t, taskutils.AddTask(context.Background(), task))
 
 	trial := &model.Trial{
 		StartTime:    time.Now(),
@@ -889,7 +890,7 @@ func TestTrialLogs(t *testing.T) {
 		StartTime:  task0.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task1))
+	require.NoError(t, taskutils.AddTask(context.Background(), task1))
 
 	task2 := &model.Task{
 		TaskType:   model.TaskTypeTrial,
@@ -897,7 +898,7 @@ func TestTrialLogs(t *testing.T) {
 		StartTime:  task1.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task2))
+	require.NoError(t, taskutils.AddTask(context.Background(), task2))
 
 	_, err := db.Bun().NewInsert().Model(&[]model.TrialTaskID{
 		{TrialID: trial.ID, TaskID: task1.TaskID},
@@ -985,7 +986,7 @@ func TestTrialLogFields(t *testing.T) {
 		StartTime:  task0.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task1))
+	require.NoError(t, taskutils.AddTask(context.Background(), task1))
 
 	task2 := &model.Task{
 		TaskType:   model.TaskTypeTrial,
@@ -993,7 +994,7 @@ func TestTrialLogFields(t *testing.T) {
 		StartTime:  task1.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, db.AddTask(context.Background(), task2))
+	require.NoError(t, taskutils.AddTask(context.Background(), task2))
 
 	_, err := db.Bun().NewInsert().Model(&[]model.TrialTaskID{
 		{TrialID: trial.ID, TaskID: task1.TaskID},

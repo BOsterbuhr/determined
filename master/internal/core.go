@@ -56,6 +56,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/task"
 	"github.com/determined-ai/determined/master/internal/task/tasklogger"
 	"github.com/determined-ai/determined/master/internal/task/taskmodel"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/internal/telemetry"
 	"github.com/determined-ai/determined/master/internal/trials"
 	"github.com/determined-ai/determined/master/internal/user"
@@ -793,7 +794,7 @@ func (m *Master) restoreNonTerminalExperiments() error {
 
 func (m *Master) closeOpenAllocations() error {
 	allocationIds := task.DefaultService.GetAllAllocationIDs()
-	if err := m.db.CloseOpenAllocations(allocationIds); err != nil {
+	if err := taskutils.CloseOpenAllocations(allocationIds); err != nil {
 		return err
 	}
 	return nil

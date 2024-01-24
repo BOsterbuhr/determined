@@ -17,6 +17,7 @@ import (
 	"github.com/determined-ai/determined/proto/pkg/commonv1"
 
 	"github.com/determined-ai/determined/master/internal/db"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/test/testutils"
 	"github.com/determined-ai/determined/proto/pkg/trialv1"
 
@@ -384,9 +385,9 @@ func createPrereqs(t *testing.T, pgDB *db.PgDB) (
 		StartTime:    ptrs.Ptr(startTime),
 		EndTime:      ptrs.Ptr(startTime.Add(time.Duration(1) * time.Second)),
 	}
-	err = pgDB.AddAllocation(a)
+	err = taskutils.AddAllocation(a)
 	assert.NilError(t, err, "failed to add allocation")
-	err = pgDB.CompleteAllocation(a)
+	err = taskutils.CompleteAllocation(a)
 	assert.NilError(t, err, "failed to complete allocation")
 
 	return experiment, trial, a

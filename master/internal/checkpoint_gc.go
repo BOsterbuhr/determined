@@ -16,6 +16,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/rm/tasklist"
 	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/task"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/logger"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/protoutils/protoconverter"
@@ -83,7 +84,7 @@ func runCheckpointGCTask(
 	})
 	syslog := logrus.WithField("component", "checkpointgc").WithFields(logCtx.Fields())
 
-	if err := db.AddTask(context.Background(), &model.Task{
+	if err := taskutils.AddTask(context.Background(), &model.Task{
 		TaskID:     taskID,
 		TaskType:   model.TaskTypeCheckpointGC,
 		StartTime:  time.Now().UTC(),
@@ -98,7 +99,7 @@ func runCheckpointGCTask(
 
 	resultChan := make(chan error, 1)
 	onExit := func(ae *task.AllocationExited) {
-		if err := pgDB.CompleteTask(taskID, time.Now().UTC()); err != nil {
+		if err := taskutils.CompleteTask(taskID, time.Now().UTC()); err != nil {
 			syslog.WithError(err).Error("marking GC task complete")
 		}
 		if err := tasklist.GroupPriorityChangeRegistry.Delete(gcJobID); err != nil {

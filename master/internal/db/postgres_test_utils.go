@@ -303,6 +303,31 @@ func RequireGetProjectHParams(t *testing.T, db *PgDB, projectID int) []string {
 	return p.Hyperparameters
 }
 
+// RequireMockTask returns a mock task.
+func RequireMockTask(t *testing.T, db *PgDB, userID *model.UserID) *model.Task {
+	jID := RequireMockJob(t, db, userID)
+
+	// Add a task.
+	tID := model.NewTaskID()
+	tIn := &model.Task{
+		TaskID:    tID,
+		JobID:     &jID,
+		TaskType:  model.TaskTypeTrial,
+		StartTime: time.Now().UTC().Truncate(time.Millisecond),
+	}
+	// Hack AddTask
+	_, err := Bun().NewInsert().Model(tIn).
+		Column("task_id", "task_type", "start_time", "job_id", "log_version").
+		On("CONFLICT (task_id) DO UPDATE").
+		Set("task_type=EXCLUDED.task_type").
+		Set("start_time=EXCLUDED.start_time").
+		Set("job_id=EXCLUDED.job_id").
+		Set("log_version=EXCLUDED.log_version").
+		Exec(context.Background())
+	require.NoError(t, err, "failed to add task")
+	return tIn
+}
+
 // RequireMockUser requires a mock model.
 func RequireMockUser(t *testing.T, db *PgDB) model.User {
 	user := model.User{
@@ -453,7 +478,12 @@ func RequireMockAllocation(t *testing.T, db *PgDB, tID model.TaskID) *model.Allo
 		StartTime:    ptrs.Ptr(time.Now().UTC()),
 		State:        ptrs.Ptr(model.AllocationStateTerminated),
 	}
-	err := db.AddAllocation(&a)
+	// Hack add allocation
+	_, err := Bun().NewInsert().Model(a).
+		On("CONFLICT (allocation_id) DO UPDATE").
+		Set("task_id=EXCLUDED.task_id, slots=EXCLUDED.slots, resource_pool=EXCLUDED.resource_pool").
+		Set("start_time=EXCLUDED.start_time, state=EXCLUDED.state, ports=EXCLUDED.ports").
+		Exec(context.Background()) // TODO CAROLINA, pass in ctx
 	require.NoError(t, err, "failed to add allocation")
 	return &a
 }

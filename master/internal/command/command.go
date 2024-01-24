@@ -19,6 +19,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/rm/tasklist"
 	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/task"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/internal/user"
 	"github.com/determined-ai/determined/master/pkg/cproto"
 	"github.com/determined-ai/determined/master/pkg/logger"
@@ -186,7 +187,7 @@ func (c *Command) registerJobAndTask(ctx context.Context, tx bun.Tx) error {
 		return fmt.Errorf("persisting job %v: %w", c.taskID, err)
 	}
 
-	if err := db.AddTaskTx(ctx, tx, &model.Task{
+	if err := taskutils.AddTaskTx(ctx, tx, &model.Task{
 		TaskID:     c.taskID,
 		TaskType:   c.taskType,
 		StartTime:  c.registeredTime,
@@ -199,7 +200,7 @@ func (c *Command) registerJobAndTask(ctx context.Context, tx bun.Tx) error {
 }
 
 func (c *Command) persistAndEvictContextDirectoryFromMemory() error {
-	if err := db.AddNonExperimentTasksContextDirectory(
+	if err := taskutils.AddNonExperimentTasksContextDirectory(
 		context.TODO(), c.taskID, c.contextDirectory,
 	); err != nil {
 		return fmt.Errorf("saving NTSC context directory: %w", err)
@@ -230,7 +231,7 @@ func (c *Command) OnExit(ae *task.AllocationExited) {
 
 	c.exitStatus = ae
 
-	if err := c.db.CompleteTask(c.taskID, time.Now().UTC()); err != nil {
+	if err := taskutils.CompleteTask(c.taskID, time.Now().UTC()); err != nil {
 		c.syslog.WithError(err).Error("marking task complete")
 	}
 	if err := user.DeleteSessionByToken(context.TODO(), c.GenericCommandSpec.Base.UserSessionToken); err != nil {
@@ -251,7 +252,7 @@ func (c *Command) garbageCollect() {
 	}
 
 	if c.exitStatus == nil {
-		if err := c.db.CompleteTask(c.taskID, time.Now().UTC()); err != nil {
+		if err := taskutils.CompleteTask(c.taskID, time.Now().UTC()); err != nil {
 			c.syslog.WithError(err).Error("marking task complete")
 		}
 	}

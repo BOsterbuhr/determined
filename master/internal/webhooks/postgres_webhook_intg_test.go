@@ -17,6 +17,7 @@ import (
 
 	"github.com/determined-ai/determined/master/internal/config"
 	"github.com/determined-ai/determined/master/internal/db"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/etc"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
@@ -242,7 +243,7 @@ func testGenerateTaskLogPayloadTest(
 				TaskType:  model.TaskTypeNotebook,
 				StartTime: time.Now().UTC().Truncate(time.Millisecond),
 			}
-			require.NoError(t, db.AddTask(ctx, task))
+			require.NoError(t, taskutils.AddTask(ctx, task))
 		}
 
 		payload, err := generateTaskLogPayload(

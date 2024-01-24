@@ -41,7 +41,7 @@ func TestTelemetry(t *testing.T) {
 	reportMasterTick(db, rm)
 	ReportProvisionerTick([]*model.Instance{}, "test-instance")
 	ReportExperimentCreated(1, schemas.WithDefaults(createExpConfig()))
-	ReportAllocationTerminal(db, model.Allocation{}, &device.Device{})
+	ReportAllocationTerminal(model.Allocation{}, &device.Device{})
 	ReportExperimentStateChanged(db, &model.Experiment{})
 	ReportUserCreated(true, true)
 	ReportUserCreated(false, false)
@@ -57,6 +57,27 @@ func TestTelemetry(t *testing.T) {
 	}
 	assert.Equal(t, expected, client.getQueue(), "queue didn't receive track calls in the right order")
 }
+
+/* TODO CAROLINA
+func TestCompleteAllocationTelemetry(t *testing.T) {
+	mockT := mockTask(t)
+
+	mockA := model.Allocation{
+		AllocationID: model.AllocationID(fmt.Sprintf("%s-1", tID)),
+		TaskID:       mockT.TaskID,
+		StartTime:    ptrs.Ptr(time.Now().UTC()),
+		State:        ptrs.Ptr(model.AllocationStateTerminated),
+	}
+	err := AddAllocation(&a)
+	require.NoError(t, err, "failed to add allocation")
+
+	bytes, err := CompleteAllocationTelemetry(mockA.AllocationID)
+	require.NoError(t, err)
+	require.Contains(t, string(bytes), string(mockA.AllocationID))
+	require.Contains(t, string(bytes), string(*mockT.JobID))
+	require.Contains(t, string(bytes), string(mockT.TaskType))
+}
+*/
 
 type mockClient struct {
 	queue []string

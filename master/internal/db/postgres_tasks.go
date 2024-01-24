@@ -2,99 +2,17 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"github.com/uptrace/bun"
 
 	"github.com/determined-ai/determined/master/internal/api"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/proto/pkg/apiv1"
 )
-
-// AddTask UPSERT's the existence of a task.
-func AddTask(ctx context.Context, t *model.Task) error {
-	// Since AddTaskTx is a single query, RunInTx is an overkill.
-	return AddTaskTx(ctx, Bun(), t)
-}
-
-// AddTaskTx UPSERT's the existence of a task in a tx.
-func AddTaskTx(ctx context.Context, idb bun.IDB, t *model.Task) error {
-	_, err := idb.NewInsert().Model(t).
-		Column("task_id", "task_type", "start_time", "job_id", "log_version").
-		On("CONFLICT (task_id) DO UPDATE").
-		Set("task_type=EXCLUDED.task_type").
-		Set("start_time=EXCLUDED.start_time").
-		Set("job_id=EXCLUDED.job_id").
-		Set("log_version=EXCLUDED.log_version").
-		Exec(ctx)
-	return MatchSentinelError(err)
-}
-
-// TaskByID returns a task by its ID.
-func TaskByID(ctx context.Context, tID model.TaskID) (*model.Task, error) {
-	var t model.Task
-	if err := Bun().NewSelect().Model(&t).Where("task_id = ?", tID).Scan(ctx, &t); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			err = ErrNotFound
-		}
-		return nil, fmt.Errorf("querying task ID %s: %w", tID, err)
-	}
-
-	return &t, nil
-}
-
-// AddNonExperimentTasksContextDirectory adds a context directory for a non experiment task.
-func AddNonExperimentTasksContextDirectory(ctx context.Context, tID model.TaskID, bytes []byte) error {
-	if bytes == nil {
-		bytes = []byte{}
-	}
-
-	if _, err := Bun().NewInsert().Model(&model.TaskContextDirectory{
-		TaskID:           tID,
-		ContextDirectory: bytes,
-	}).Exec(ctx); err != nil {
-		return fmt.Errorf("persisting context directory files for task %s: %w", tID, err)
-	}
-
-	return nil
-}
-
-// NonExperimentTasksContextDirectory returns a non experiment's context directory.
-func NonExperimentTasksContextDirectory(ctx context.Context, tID model.TaskID) ([]byte, error) {
-	res := &model.TaskContextDirectory{}
-	if err := Bun().NewSelect().Model(res).Where("task_id = ?", tID).Scan(ctx, res); err != nil {
-		return nil, fmt.Errorf("querying task ID %s context directory files: %w", tID, err)
-	}
-
-	return res.ContextDirectory, nil
-}
-
-// TaskCompleted checks if the end time exists for a task, if so, the task has completed.
-func TaskCompleted(ctx context.Context, tID model.TaskID) (bool, error) {
-	return Bun().NewSelect().Table("tasks").
-		Where("task_id = ?", tID).Where("end_time IS NOT NULL").Exists(ctx)
-}
-
-// CompleteTask persists the completion of a task.
-func (db *PgDB) CompleteTask(tID model.TaskID, endTime time.Time) error {
-	return completeTask(db.sql, tID, endTime)
-}
-
-func completeTask(ex sqlx.Execer, tID model.TaskID, endTime time.Time) error {
-	if _, err := ex.Exec(`
-UPDATE tasks
-SET end_time = $2
-WHERE task_id = $1
-	`, tID, endTime); err != nil {
-		return errors.Wrap(err, "completing task")
-	}
-	return nil
-}
 
 func completeTrialsTasks(ex sqlx.Execer, trialID int, endTime time.Time) error {
 	if _, err := ex.Exec(`
@@ -105,100 +23,6 @@ WHERE trial_id_task_id.task_id = tasks.task_id
   AND trial_id_task_id.trial_id = $1
   AND end_time IS NULL`, trialID, endTime); err != nil {
 		return fmt.Errorf("completing task: %w", err)
-	}
-	return nil
-}
-
-// AddAllocation upserts the existence of an allocation. Allocation IDs may conflict in the event
-// the master restarts and the trial run ID increment is not persisted, but it is the same
-// allocation so this is OK.
-func (db *PgDB) AddAllocation(a *model.Allocation) error {
-	return db.namedExecOne(`
-INSERT INTO allocations
-	(task_id, allocation_id, slots, resource_pool, start_time, state, ports)
-VALUES
-	(:task_id, :allocation_id, :slots, :resource_pool, :start_time, :state, :ports)
-ON CONFLICT
-	(allocation_id)
-DO UPDATE SET
-	task_id=EXCLUDED.task_id, slots=EXCLUDED.slots, resource_pool=EXCLUDED.resource_pool,
-	start_time=EXCLUDED.start_time, state=EXCLUDED.state, ports=EXCLUDED.ports
-`, a)
-}
-
-// AddAllocationExitStatus adds the allocation exit status to the allocations table.
-func AddAllocationExitStatus(ctx context.Context, a *model.Allocation) error {
-	_, err := Bun().NewUpdate().
-		Model(a).
-		Column("exit_reason", "exit_error", "status_code").
-		Where("allocation_id = ?", a.AllocationID).
-		Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("adding allocation exit status to db: %w", err)
-	}
-	return nil
-}
-
-// CompleteAllocation persists the end of an allocation lifetime.
-func (db *PgDB) CompleteAllocation(a *model.Allocation) error {
-	if a.StartTime == nil {
-		a.StartTime = a.EndTime
-	}
-
-	_, err := db.sql.Exec(`
-UPDATE allocations
-SET start_time = $2, end_time = $3
-WHERE allocation_id = $1`, a.AllocationID, a.StartTime, a.EndTime)
-
-	return err
-}
-
-// CompleteAllocationTelemetry returns the analytics of an allocation for the telemetry.
-func (db *PgDB) CompleteAllocationTelemetry(aID model.AllocationID) ([]byte, error) {
-	return db.rawQuery(`
-SELECT json_build_object(
-	'allocation_id', a.allocation_id,
-	'job_id', t.job_id,
-	'task_type', t.task_type,
-    'duration_sec', COALESCE(EXTRACT(EPOCH FROM (a.end_time - a.start_time)), 0)
-)
-FROM allocations as a JOIN tasks as t
-ON a.task_id = t.task_id
-WHERE a.allocation_id = $1;
-`, aID)
-}
-
-// TODO CAROLINA, stopping here for today.
-
-// CloseOpenAllocations finds all allocations that were open when the master crashed
-// and adds an end time.
-func (db *PgDB) CloseOpenAllocations(exclude []model.AllocationID) error {
-	if _, err := db.sql.Exec(`
-	UPDATE allocations
-	SET start_time = cluster_heartbeat FROM cluster_id
-	WHERE start_time is NULL`); err != nil {
-		return errors.Wrap(err,
-			"setting start time to cluster heartbeat when it's assigned to zero value")
-	}
-
-	excludedFilter := ""
-	if len(exclude) > 0 {
-		excludeStr := make([]string, 0, len(exclude))
-		for _, v := range exclude {
-			excludeStr = append(excludeStr, v.String())
-		}
-
-		excludedFilter = strings.Join(excludeStr, ",")
-	}
-
-	if _, err := db.sql.Exec(`
-	UPDATE allocations
-	SET end_time = greatest(cluster_heartbeat, start_time), state = 'TERMINATED'
-	FROM cluster_id
-	WHERE end_time IS NULL AND
-	($1 = '' OR allocation_id NOT IN (
-		SELECT unnest(string_to_array($1, ','))))`, excludedFilter); err != nil {
-		return errors.Wrap(err, "closing old allocations")
 	}
 	return nil
 }

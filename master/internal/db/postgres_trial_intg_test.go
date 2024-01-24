@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"gopkg.in/yaml.v3" // Can't use ghodss/yaml since NaNs error.
 
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/etc"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
 	"github.com/determined-ai/determined/proto/pkg/checkpointv1"
@@ -859,9 +860,9 @@ func TestProtoGetTrial(t *testing.T) {
 			StartTime:    ptrs.Ptr(startTime.Add(time.Duration(i) * time.Second)),
 			EndTime:      ptrs.Ptr(startTime.Add(time.Duration(i+1) * time.Second)),
 		}
-		err = db.AddAllocation(a)
+		err = taskutils.AddAllocation(a)
 		require.NoError(t, err, "failed to add allocation")
-		err = db.CompleteAllocation(a)
+		err = taskutils.CompleteAllocation(a)
 		require.NoError(t, err, "failed to complete allocation")
 	}
 
@@ -909,7 +910,7 @@ func TestAddValidationMetricsDupeCheckpoints(t *testing.T) {
 		TaskID:       task.TaskID,
 		StartTime:    ptrs.Ptr(time.Now()),
 	}
-	require.NoError(t, db.AddAllocation(a))
+	require.NoError(t, taskutils.AddAllocation(a))
 
 	// Report training metrics.
 	require.NoError(t, db.AddTrainingMetrics(ctx, &trialv1.TrialMetrics{
@@ -934,7 +935,7 @@ func TestAddValidationMetricsDupeCheckpoints(t *testing.T) {
 		TaskID:       task.TaskID,
 		StartTime:    ptrs.Ptr(time.Now()),
 	}
-	require.NoError(t, db.AddAllocation(a))
+	require.NoError(t, taskutils.AddAllocation(a))
 	require.NoError(t, db.UpdateTrialRunID(tr.ID, 1))
 
 	// Now trial runs validation.
@@ -1008,7 +1009,7 @@ func TestBatchesProcessedNRollbacks(t *testing.T) {
 		TaskID:       task.TaskID,
 		StartTime:    ptrs.Ptr(time.Now()),
 	}
-	err = db.AddAllocation(a)
+	err = taskutils.AddAllocation(a)
 	require.NoError(t, err, "failed to add allocation")
 
 	metrics, err := structpb.NewStruct(map[string]any{"loss": 10})
@@ -1132,7 +1133,7 @@ func TestGenericMetricsIO(t *testing.T) {
 		TaskID:       task.TaskID,
 		StartTime:    ptrs.Ptr(time.Now()),
 	}
-	err = db.AddAllocation(a)
+	err = taskutils.AddAllocation(a)
 	require.NoError(t, err, "failed to add allocation")
 
 	metrics, err := structpb.NewStruct(map[string]any{
@@ -1255,7 +1256,7 @@ func TestConcurrentMetricUpdate(t *testing.T) {
 			TaskID:       task.TaskID,
 			StartTime:    ptrs.Ptr(time.Now()),
 		}
-		err := db.AddAllocation(a)
+		err := taskutils.AddAllocation(a)
 		require.NoError(t, err, "failed to add allocation")
 
 		dbTr, err := TrialByID(ctx, tr.ID)

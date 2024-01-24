@@ -41,6 +41,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/mocks"
 	modelauth "github.com/determined-ai/determined/master/internal/model"
 	"github.com/determined-ai/determined/master/internal/sproto"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/etc"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
@@ -208,18 +209,18 @@ func TestGetTaskContextDirectoryExperiment(t *testing.T) {
 
 func TestGetTaskContextDirectoryTask(t *testing.T) {
 	api, _, ctx := setupAPITest(t, nil)
-	task := &model.Task{TaskType: model.TaskTypeNotebook, TaskID: model.NewTaskID()}
-	require.NoError(t, db.AddTask(context.Background(), task))
+	testTask := &model.Task{TaskType: model.TaskTypeNotebook, TaskID: model.NewTaskID()}
+	require.NoError(t, taskutils.AddTask(context.Background(), testTask))
 
 	expectedContextDirectory := []byte("expectedContextDirectory")
 	_, err := db.Bun().NewInsert().Model(&model.TaskContextDirectory{
-		TaskID:           task.TaskID,
+		TaskID:           testTask.TaskID,
 		ContextDirectory: expectedContextDirectory,
 	}).Exec(context.TODO())
 	require.NoError(t, err)
 
 	actual, err := api.GetTaskContextDirectory(ctx, &apiv1.GetTaskContextDirectoryRequest{
-		TaskId: string(task.TaskID),
+		TaskId: string(testTask.TaskID),
 	})
 	require.NoError(t, err)
 
@@ -538,12 +539,12 @@ func TestGetExperiments(t *testing.T) {
 	}
 	require.NoError(t, api.m.db.AddExperiment(exp0, activeConfig0))
 	for i := 0; i < 3; i++ {
-		task := &model.Task{TaskType: model.TaskTypeTrial, TaskID: model.NewTaskID()}
-		require.NoError(t, db.AddTask(context.Background(), task))
+		testTask := &model.Task{TaskType: model.TaskTypeTrial, TaskID: model.NewTaskID()}
+		require.NoError(t, taskutils.AddTask(context.Background(), testTask))
 		require.NoError(t, db.AddTrial(ctx, &model.Trial{
 			State:        model.PausedState,
 			ExperimentID: exp0.ID,
-		}, task.TaskID))
+		}, testTask.TaskID))
 	}
 	exp0Expected := &experimentv1.Experiment{
 		Id:             int32(exp0.ID),
@@ -790,12 +791,12 @@ func TestSearchExperiments(t *testing.T) {
 
 	// Trial without validations doesn't cause issues.
 	noValidationsExp := createTestExpWithProjectID(t, api, curUser, projectIDInt)
-	task := &model.Task{TaskType: model.TaskTypeTrial, TaskID: model.NewTaskID()}
-	require.NoError(t, db.AddTask(context.Background(), task))
+	testTask := &model.Task{TaskType: model.TaskTypeTrial, TaskID: model.NewTaskID()}
+	require.NoError(t, taskutils.AddTask(context.Background(), testTask))
 	require.NoError(t, db.AddTrial(ctx, &model.Trial{
 		State:        model.PausedState,
 		ExperimentID: noValidationsExp.ID,
-	}, task.TaskID))
+	}, testTask.TaskID))
 
 	resp, err = api.SearchExperiments(ctx, req)
 	require.NoError(t, err)

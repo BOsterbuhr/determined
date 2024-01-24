@@ -25,6 +25,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/logpattern"
 	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/task"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/internal/webhooks"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/proto/pkg/apiv1"
@@ -79,7 +80,7 @@ func (a *apiServer) canDoActionsOnTask(
 	actions ...func(context.Context, model.User, *model.Experiment) error,
 ) error {
 	errTaskNotFound := api.NotFoundErrs("task", fmt.Sprint(taskID), true)
-	t, err := db.TaskByID(ctx, taskID)
+	t, err := taskutils.TaskByID(ctx, taskID)
 	if errors.Is(err, db.ErrNotFound) {
 		return errTaskNotFound
 	} else if err != nil {
@@ -763,7 +764,7 @@ func (a *apiServer) isTaskTerminalFunc(
 	taskID model.TaskID, buffer time.Duration,
 ) api.TerminationCheckFn {
 	return func() (bool, error) {
-		switch task, err := db.TaskByID(context.TODO(), taskID); {
+		switch task, err := taskutils.TaskByID(context.TODO(), taskID); {
 		case err != nil:
 			return true, err
 		case task.EndTime != nil && task.EndTime.UTC().Add(buffer).Before(time.Now().UTC()):

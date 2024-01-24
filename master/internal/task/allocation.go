@@ -24,6 +24,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/task/preemptible"
 	"github.com/determined-ai/determined/master/internal/task/tasklogger"
 	"github.com/determined-ai/determined/master/internal/task/taskmodel"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/internal/telemetry"
 	"github.com/determined-ai/determined/master/pkg/cproto"
 	detLogger "github.com/determined-ai/determined/master/pkg/logger"
@@ -332,7 +333,7 @@ func (a *allocation) SetProxyAddress(ctx context.Context, address string) error 
 		return nil
 	}
 	a.model.ProxyAddress = &address
-	if err := UpdateAllocationProxyAddress(ctx, a.model); err != nil {
+	if err := taskutils.UpdateAllocationProxyAddress(ctx, a.model); err != nil {
 		a.crash(err)
 		return err
 	}
@@ -352,7 +353,7 @@ func (a *allocation) SetWaiting(ctx context.Context) error {
 	defer a.mu.Unlock()
 
 	a.setMostProgressedModelState(model.AllocationStateWaiting)
-	if err := UpdateAllocationState(ctx, a.model); err != nil {
+	if err := taskutils.UpdateAllocationState(ctx, a.model); err != nil {
 		a.crash(err)
 		return err
 	}
@@ -371,7 +372,7 @@ func (a *allocation) SetReady(ctx context.Context) error {
 	a.sendTaskLog(&model.TaskLog{Log: fmt.Sprintf("Service of %s is available", a.req.Name)})
 	a.setMostProgressedModelState(model.AllocationStateRunning)
 	a.model.IsReady = ptrs.Ptr(true)
-	if err := UpdateAllocationState(ctx, a.model); err != nil {
+	if err := taskutils.UpdateAllocationState(ctx, a.model); err != nil {
 		a.crash(err)
 		return err
 	}
@@ -388,7 +389,7 @@ func (a *allocation) persistRendezvousComplete(ctx context.Context) error {
 	if a.model.IsReady == nil || (a.model.IsReady != nil && !*a.model.IsReady) {
 		a.syslog.Info("all containers are connected successfully (task container state changed)")
 		a.model.IsReady = ptrs.Ptr(true)
-		if err := UpdateAllocationState(ctx, a.model); err != nil {
+		if err := taskutils.UpdateAllocationState(ctx, a.model); err != nil {
 			return err
 		}
 	}
@@ -520,7 +521,7 @@ func (a *allocation) requestResources() (*sproto.ResourcesSubscription, error) {
 	a.syslog.Debug("requestResources add allocation")
 
 	a.setModelState(model.AllocationStatePending)
-	if err := a.db.AddAllocation(&a.model); err != nil {
+	if err := taskutils.AddAllocation(&a.model); err != nil {
 		return nil, errors.Wrap(err, "saving trial allocation")
 	}
 
@@ -573,7 +574,7 @@ func (a *allocation) finalize(
 	}
 
 	a.setMostProgressedModelState(model.AllocationStateTerminated)
-	if err := UpdateAllocationState(context.Background(), a.model); err != nil {
+	if err := taskutils.UpdateAllocationState(context.Background(), a.model); err != nil {
 		a.syslog.WithError(err).Error("failed to set allocation state to terminated")
 	}
 	a.purgeRestorableResources()
@@ -617,7 +618,7 @@ func (a *allocation) resourcesAllocated(ctx context.Context, msg *sproto.Resourc
 		}
 	})
 
-	if err := UpdateAllocationState(ctx, a.model); err != nil {
+	if err := taskutils.UpdateAllocationState(ctx, a.model); err != nil {
 		return errors.Wrap(err, "updating allocation state")
 	}
 
@@ -672,7 +673,7 @@ func (a *allocation) resourcesAllocated(ctx context.Context, msg *sproto.Resourc
 	} else {
 		spec := a.specifier.ToTaskSpec()
 
-		token, err := StartAllocationSession(ctx, a.model.AllocationID, spec.Owner)
+		token, err := taskutils.StartAllocationSession(ctx, a.model.AllocationID, spec.Owner)
 		if err != nil {
 			return errors.Wrap(err, "starting a new allocation session")
 		}
@@ -687,7 +688,7 @@ func (a *allocation) resourcesAllocated(ctx context.Context, msg *sproto.Resourc
 			}
 		})
 
-		err = UpdateAllocationPorts(ctx, a.model)
+		err = taskutils.UpdateAllocationPorts(ctx, a.model)
 		if err != nil {
 			return fmt.Errorf("updating allocation db")
 		}
@@ -841,7 +842,7 @@ func (a *allocation) resourcesStateChanged(ctx context.Context, msg *sproto.Reso
 		}
 	}
 
-	if err := UpdateAllocationState(ctx, a.model); err != nil {
+	if err := taskutils.UpdateAllocationState(ctx, a.model); err != nil {
 		a.syslog.Error(err)
 	}
 }
@@ -851,7 +852,7 @@ func (a *allocation) restoreResourceFailure(ctx context.Context, msg *sproto.Res
 	a.syslog.Debugf("allocation resource failure")
 	a.setMostProgressedModelState(model.AllocationStateTerminating)
 
-	if err := UpdateAllocationState(ctx, a.model); err != nil {
+	if err := taskutils.UpdateAllocationState(ctx, a.model); err != nil {
 		a.syslog.Error(err)
 	}
 
@@ -869,7 +870,7 @@ func (a *allocation) restoreResourceFailure(ctx context.Context, msg *sproto.Res
 		a.model.EndTime = ptrs.Ptr(time.Now().UTC())
 	}
 
-	if err := a.db.CompleteAllocation(&a.model); err != nil {
+	if err := taskutils.CompleteAllocation(&a.model); err != nil {
 		a.syslog.WithError(err).Error("failed to mark allocation completed")
 	}
 
@@ -1042,7 +1043,7 @@ func (a *allocation) SetExitStatus(exitReason string, exitErr error, statusCode 
 		a.model.StatusCode = statusCode
 	}
 
-	if err := db.AddAllocationExitStatus(context.TODO(), &a.model); err != nil {
+	if err := taskutils.AddAllocationExitStatus(context.TODO(), &a.model); err != nil {
 		a.syslog.WithError(err).Error("failed to add allocation exit status to db")
 	}
 }
@@ -1191,7 +1192,7 @@ func (a *allocation) markResourcesStarted() {
 	} else {
 		a.sendTaskLog(&model.TaskLog{Log: fmt.Sprintf("%s was assigned to an agent", a.req.Name)})
 	}
-	if err := UpdateAllocationStartTime(context.Background(), a.model); err != nil {
+	if err := taskutils.UpdateAllocationStartTime(context.Background(), a.model); err != nil {
 		a.syslog.
 			WithError(err).
 			Errorf("allocation will not be properly accounted for")
@@ -1200,18 +1201,18 @@ func (a *allocation) markResourcesStarted() {
 
 // markResourcesReleased persists completion information.
 func (a *allocation) markResourcesReleased() {
-	if err := DeleteAllocationSession(context.Background(), a.model.AllocationID); err != nil {
+	if err := taskutils.DeleteAllocationSession(context.Background(), a.model.AllocationID); err != nil {
 		a.syslog.WithError(err).Error("error deleting allocation session")
 	}
 	if a.model.StartTime == nil {
 		return
 	}
 	a.model.EndTime = ptrs.Ptr(time.Now().UTC())
-	if err := a.db.CompleteAllocation(&a.model); err != nil {
+	if err := taskutils.CompleteAllocation(&a.model); err != nil {
 		a.syslog.WithError(err).Error("failed to mark allocation completed")
 	}
 
-	telemetry.ReportAllocationTerminal(a.db, a.model, a.resources.firstDevice())
+	telemetry.ReportAllocationTerminal(a.model, a.resources.firstDevice())
 }
 
 func (a *allocation) purgeRestorableResources() {

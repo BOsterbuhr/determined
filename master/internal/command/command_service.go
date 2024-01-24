@@ -12,6 +12,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/db"
 	"github.com/determined-ai/determined/master/internal/rm"
 	"github.com/determined-ai/determined/master/internal/task"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/logger"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/protoutils"
@@ -225,7 +226,7 @@ func (cs *CommandService) KillNTSC(id string, taskType model.TaskType) (*Command
 		return nil, err
 	}
 
-	completed, err := db.TaskCompleted(context.TODO(), tID)
+	completed, err := taskutils.TaskCompleted(context.TODO(), tID)
 	if err != nil {
 		return nil, err
 	}

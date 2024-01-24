@@ -21,6 +21,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/proxy"
 	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/task/tasklogger"
+	"github.com/determined-ai/determined/master/internal/task/taskutils"
 	"github.com/determined-ai/determined/master/pkg/aproto"
 	"github.com/determined-ai/determined/master/pkg/cproto"
 	"github.com/determined-ai/determined/master/pkg/device"
@@ -517,7 +518,7 @@ func TestRestore(t *testing.T) {
 	restoredAr := stubAllocateRequest(restoredTask)
 	restoredAr.Restore = true
 
-	err := pgDB.AddAllocation(&model.Allocation{
+	err := taskutils.AddAllocation(&model.Allocation{
 		AllocationID: restoredAr.AllocationID,
 		TaskID:       restoredAr.TaskID,
 		Slots:        restoredAr.SlotsNeeded,
@@ -739,7 +740,7 @@ func requireDBState(
 	id model.AllocationID,
 	expected model.AllocationState,
 ) *model.Allocation {
-	dbState, err := AllocationByID(context.Background(), id)
+	dbState, err := taskutils.AllocationByID(context.Background(), id)
 	require.NoError(t, err)
 	require.NotNil(t, dbState.State)
 	require.Equal(t, expected, *dbState.State)
