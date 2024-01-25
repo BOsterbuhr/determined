@@ -41,7 +41,7 @@ func TestTelemetry(t *testing.T) {
 	reportMasterTick(db, rm)
 	ReportProvisionerTick([]*model.Instance{}, "test-instance")
 	ReportExperimentCreated(1, schemas.WithDefaults(createExpConfig()))
-	ReportAllocationTerminal(db, model.Allocation{}, &device.Device{})
+	ReportAllocationTerminal(model.Allocation{}, &device.Device{})
 	ReportExperimentStateChanged(db, &model.Experiment{})
 	ReportUserCreated(true, true)
 	ReportUserCreated(false, false)

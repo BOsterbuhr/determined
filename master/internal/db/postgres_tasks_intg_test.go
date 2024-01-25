@@ -86,7 +86,7 @@ func TestJobTaskAndAllocationAPI(t *testing.T) {
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
-	err = db.AddTask(tIn)
+	err = AddTask(ctx, tIn)
 	require.NoError(t, err, "failed to add task")
 
 	// Retrieve it back and make sure the mapping is exhaustive.
@@ -96,7 +96,7 @@ func TestJobTaskAndAllocationAPI(t *testing.T) {
 
 	// Complete it.
 	tIn.EndTime = ptrs.Ptr(time.Now().UTC().Truncate(time.Millisecond))
-	err = db.CompleteTask(tID, *tIn.EndTime)
+	err = CompleteTask(ctx, tID, *tIn.EndTime)
 	require.NoError(t, err, "failed to mark task completed")
 
 	// Re-retrieve it back and make sure the mapping is still exhaustive.
@@ -120,7 +120,7 @@ func TestJobTaskAndAllocationAPI(t *testing.T) {
 		StartTime:    ptrs.Ptr(time.Now().UTC().Truncate(time.Millisecond)),
 		Ports:        ports,
 	}
-	err = db.AddAllocation(aIn)
+	err = AddAllocation(ctx, aIn)
 	require.NoError(t, err, "failed to add allocation")
 
 	// Update ports
@@ -129,39 +129,41 @@ func TestJobTaskAndAllocationAPI(t *testing.T) {
 	ports["inter_train_process_comm_port2"] = 0
 	ports["c10d_port"] = 0
 	aIn.Ports = ports
-	err = UpdateAllocationPorts(*aIn)
+	err = UpdateAllocationPorts(ctx, *aIn)
 	require.NoError(t, err, "failed to update port offset")
 
 	// Retrieve it back and make sure the mapping is exhaustive.
-	aOut, err := db.AllocationByID(aIn.AllocationID)
+	aOut, err := AllocationByID(ctx, aIn.AllocationID)
 	require.NoError(t, err, "failed to retrieve allocation")
 	require.True(t, reflect.DeepEqual(aIn, aOut), pprintedExpect(aIn, aOut))
 
 	// Complete it.
 	aIn.EndTime = ptrs.Ptr(time.Now().UTC().Truncate(time.Millisecond))
-	err = db.CompleteAllocation(aIn)
+	err = CompleteAllocation(ctx, aIn)
 	require.NoError(t, err, "failed to mark allocation completed")
 
 	// Re-retrieve it back and make sure the mapping is still exhaustive.
-	aOut, err = db.AllocationByID(aIn.AllocationID)
+	aOut, err = AllocationByID(ctx, aIn.AllocationID)
 	require.NoError(t, err, "failed to re-retrieve allocation")
 	require.True(t, reflect.DeepEqual(aIn, aOut), pprintedExpect(aIn, aOut))
 }
 
 func TestRecordAndEndTaskStats(t *testing.T) {
+	ctx := context.Background()
 	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
 	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 
 	tID := model.NewTaskID()
-	require.NoError(t, db.AddTask(&model.Task{
-		TaskID:    tID,
-		TaskType:  model.TaskTypeTrial,
-		StartTime: time.Now().UTC().Truncate(time.Millisecond),
-	}), "failed to add task")
+	require.NoError(t, AddTask(context.Background(),
+		&model.Task{
+			TaskID:    tID,
+			TaskType:  model.TaskTypeTrial,
+			StartTime: time.Now().UTC().Truncate(time.Millisecond),
+		}), "failed to add task")
 
 	allocationID := model.AllocationID(tID + "allocationID")
-	require.NoError(t, db.AddAllocation(&model.Allocation{
+	require.NoError(t, AddAllocation(context.Background(), &model.Allocation{
 		TaskID:       tID,
 		AllocationID: allocationID,
 	}), "failed to add allocation")
@@ -177,10 +179,10 @@ func TestRecordAndEndTaskStats(t *testing.T) {
 		if i == 0 {
 			taskStats.ContainerID = nil
 		}
-		require.NoError(t, RecordTaskStatsBun(taskStats))
+		require.NoError(t, RecordTaskStatsBun(ctx, taskStats))
 
 		taskStats.EndTime = ptrs.Ptr(time.Now().Truncate(time.Millisecond))
-		require.NoError(t, RecordTaskEndStatsBun(taskStats))
+		require.NoError(t, RecordTaskEndStatsBun(ctx, taskStats))
 		expected = append(expected, taskStats)
 	}
 
@@ -193,7 +195,7 @@ func TestRecordAndEndTaskStats(t *testing.T) {
 
 	require.ElementsMatch(t, expected, actual)
 
-	err = db.EndAllTaskStats()
+	err = EndAllTaskStats(ctx)
 	require.NoError(t, err)
 }
 
@@ -209,11 +211,12 @@ func TestNonExperimentTasksContextDirectory(t *testing.T) {
 
 	// Nil context directory.
 	tID := model.NewTaskID()
-	require.NoError(t, db.AddTask(&model.Task{
-		TaskID:    tID,
-		TaskType:  model.TaskTypeNotebook,
-		StartTime: time.Now().UTC().Truncate(time.Millisecond),
-	}), "failed to add task")
+	require.NoError(t, AddTask(context.Background(),
+		&model.Task{
+			TaskID:    tID,
+			TaskType:  model.TaskTypeNotebook,
+			StartTime: time.Now().UTC().Truncate(time.Millisecond),
+		}), "failed to add task")
 
 	require.NoError(t, AddNonExperimentTasksContextDirectory(ctx, tID, nil))
 
@@ -223,11 +226,12 @@ func TestNonExperimentTasksContextDirectory(t *testing.T) {
 
 	// Non nil context directory.
 	tID = model.NewTaskID()
-	require.NoError(t, db.AddTask(&model.Task{
-		TaskID:    tID,
-		TaskType:  model.TaskTypeNotebook,
-		StartTime: time.Now().UTC().Truncate(time.Millisecond),
-	}), "failed to add task")
+	require.NoError(t, AddTask(context.Background(),
+		&model.Task{
+			TaskID:    tID,
+			TaskType:  model.TaskTypeNotebook,
+			StartTime: time.Now().UTC().Truncate(time.Millisecond),
+		}), "failed to add task")
 
 	expectedDir := []byte{3, 2, 1}
 	require.NoError(t, AddNonExperimentTasksContextDirectory(ctx, tID, expectedDir))
@@ -238,6 +242,7 @@ func TestNonExperimentTasksContextDirectory(t *testing.T) {
 }
 
 func TestAllocationState(t *testing.T) {
+	ctx := context.Background()
 	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
 	MustMigrateTestPostgres(t, db, MigrationsFromDB)
@@ -259,7 +264,7 @@ func TestAllocationState(t *testing.T) {
 			TaskType:  model.TaskTypeTrial,
 			StartTime: time.Now().UTC().Truncate(time.Millisecond),
 		}
-		require.NoError(t, db.AddTask(task), "failed to add task")
+		require.NoError(t, AddTask(context.Background(), task), "failed to add task")
 
 		s := state
 		a := &model.Allocation{
@@ -268,7 +273,7 @@ func TestAllocationState(t *testing.T) {
 			ResourcePool: "default",
 			State:        &s,
 		}
-		require.NoError(t, db.AddAllocation(a), "failed to add allocation")
+		require.NoError(t, AddAllocation(context.Background(), a), "failed to add allocation")
 
 		// Update allocation to every possible state.
 		testNoUpdate := true
@@ -278,7 +283,7 @@ func TestAllocationState(t *testing.T) {
 				j-- // Go to first iteration of loop after this.
 			} else {
 				a.State = &states[j]
-				require.NoError(t, db.UpdateAllocationState(*a),
+				require.NoError(t, UpdateAllocationState(ctx, *a),
 					"failed to update allocation state")
 			}
 
@@ -437,15 +442,15 @@ func TestAddNonExperimentTasksContextDirectory(t *testing.T) {
 }
 
 func TestTaskCompleted(t *testing.T) {
-	ctx := context.Background()
 	db := MustResolveTestPostgres(t)
+	ctx := context.Background()
 	tIn := RequireMockTask(t, db, nil)
 
 	completed, err := TaskCompleted(ctx, tIn.TaskID)
 	require.False(t, completed)
 	require.NoError(t, err)
 
-	err = db.CompleteTask(tIn.TaskID, time.Now().UTC().Truncate(time.Millisecond))
+	err = CompleteTask(ctx, tIn.TaskID, time.Now().UTC().Truncate(time.Millisecond))
 	require.NoError(t, err)
 
 	completed, err = TaskCompleted(ctx, tIn.TaskID)
@@ -455,6 +460,7 @@ func TestTaskCompleted(t *testing.T) {
 
 func TestAddAllocation(t *testing.T) {
 	db := MustResolveTestPostgres(t)
+
 	tIn := RequireMockTask(t, db, nil)
 	a := model.Allocation{
 		AllocationID: model.AllocationID(fmt.Sprintf("%s-1", tIn.TaskID)),
@@ -463,7 +469,7 @@ func TestAddAllocation(t *testing.T) {
 		State:        ptrs.Ptr(model.AllocationStateTerminated),
 	}
 
-	err := db.AddAllocation(&a)
+	err := AddAllocation(context.Background(), &a)
 	require.NoError(t, err, "failed to add allocation")
 
 	var res model.Allocation
@@ -479,6 +485,7 @@ func TestAddAllocation(t *testing.T) {
 func TestAddAllocationExitStatus(t *testing.T) {
 	db := MustResolveTestPostgres(t)
 
+	ctx := context.Background()
 	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
@@ -493,7 +500,7 @@ func TestAddAllocationExitStatus(t *testing.T) {
 	err := AddAllocationExitStatus(context.Background(), aIn)
 	require.NoError(t, err)
 
-	res, err := db.AllocationByID(aIn.AllocationID)
+	res, err := AllocationByID(ctx, aIn.AllocationID)
 	require.NoError(t, err)
 	require.Equal(t, aIn.ExitErr, res.ExitErr)
 	require.Equal(t, aIn.ExitReason, res.ExitReason)
@@ -508,10 +515,10 @@ func TestCompleteAllocation(t *testing.T) {
 
 	aIn.EndTime = ptrs.Ptr(time.Now().UTC())
 
-	err := db.CompleteAllocation(aIn)
+	err := CompleteAllocation(context.Background(), aIn)
 	require.NoError(t, err)
 
-	res, err := db.AllocationByID(aIn.AllocationID)
+	res, err := AllocationByID(context.Background(), aIn.AllocationID)
 	require.NoError(t, err)
 	require.Equal(t, aIn.EndTime, res.EndTime)
 }
@@ -522,7 +529,7 @@ func TestCompleteAllocationTelemetry(t *testing.T) {
 	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
-	bytes, err := db.CompleteAllocationTelemetry(aIn.AllocationID)
+	bytes, err := CompleteAllocationTelemetry(context.Background(), aIn.AllocationID)
 	require.NoError(t, err)
 	require.Contains(t, string(bytes), string(aIn.AllocationID))
 	require.Contains(t, string(bytes), string(*tIn.JobID))
@@ -535,19 +542,20 @@ func TestAllocationByID(t *testing.T) {
 	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
-	a, err := db.AllocationByID(aIn.AllocationID)
+	a, err := AllocationByID(context.Background(), aIn.AllocationID)
 	require.NoError(t, err)
 	require.Equal(t, aIn, a)
 }
 
 func TestAllocationSessionFlow(t *testing.T) {
+	ctx := context.Background()
 	db := MustResolveTestPostgres(t)
 
 	uIn := RequireMockUser(t, db)
 	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
-	tok, err := db.StartAllocationSession(aIn.AllocationID, &uIn)
+	tok, err := StartAllocationSession(ctx, aIn.AllocationID, &uIn)
 	require.NoError(t, err)
 	require.NotNil(t, tok)
 
@@ -557,14 +565,14 @@ func TestAllocationSessionFlow(t *testing.T) {
 
 	running := model.AllocationStatePulling
 	aIn.State = &running
-	err = db.UpdateAllocationState(*aIn)
+	err = UpdateAllocationState(ctx, *aIn)
 	require.NoError(t, err)
 
-	a, err := db.AllocationByID(aIn.AllocationID)
+	a, err := AllocationByID(ctx, aIn.AllocationID)
 	require.NoError(t, err)
 	require.Equal(t, aIn.State, a.State)
 
-	err = db.DeleteAllocationSession(aIn.AllocationID)
+	err = DeleteAllocationSession(ctx, aIn.AllocationID)
 	require.NoError(t, err)
 
 	as, err = allocationSessionByID(t, aIn.AllocationID)
@@ -574,15 +582,16 @@ func TestAllocationSessionFlow(t *testing.T) {
 
 func TestUpdateAllocation(t *testing.T) {
 	db := MustResolveTestPostgres(t)
+	ctx := context.Background()
 	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	// Testing UpdateAllocation Ports
 	aIn.Ports = map[string]int{"abc": 123, "def": 456}
-	err := UpdateAllocationPorts(*aIn)
+	err := UpdateAllocationPorts(ctx, *aIn)
 	require.NoError(t, err)
 
-	a, err := db.AllocationByID(aIn.AllocationID)
+	a, err := AllocationByID(ctx, aIn.AllocationID)
 	require.NoError(t, err)
 	require.Equal(t, aIn.Ports, a.Ports)
 
@@ -590,10 +599,10 @@ func TestUpdateAllocation(t *testing.T) {
 	newStartTime := ptrs.Ptr(time.Now().UTC())
 	aIn.StartTime = newStartTime
 
-	err = db.UpdateAllocationStartTime(*aIn)
+	err = UpdateAllocationStartTime(ctx, *aIn)
 	require.NoError(t, err)
 
-	a, err = db.AllocationByID(aIn.AllocationID)
+	a, err = AllocationByID(ctx, aIn.AllocationID)
 	require.NoError(t, err)
 	require.Equal(t, aIn.StartTime, a.StartTime)
 
@@ -601,10 +610,10 @@ func TestUpdateAllocation(t *testing.T) {
 	proxyAddr := "here"
 	aIn.ProxyAddress = &proxyAddr
 
-	err = db.UpdateAllocationProxyAddress(*aIn)
+	err = UpdateAllocationProxyAddress(ctx, *aIn)
 	require.NoError(t, err)
 
-	a, err = db.AllocationByID(aIn.AllocationID)
+	a, err = AllocationByID(ctx, aIn.AllocationID)
 	require.NoError(t, err)
 	require.Equal(t, aIn.ProxyAddress, a.ProxyAddress)
 }
@@ -612,10 +621,11 @@ func TestUpdateAllocation(t *testing.T) {
 func TestCloseOpenAllocations(t *testing.T) {
 	db := MustResolveTestPostgres(t)
 
+	ctx := context.Background()
+
 	// Create test allocations, with a NULL end time.
 	t1In := RequireMockTask(t, db, nil)
 	a1In := RequireMockAllocation(t, db, t1In.TaskID)
-
 	t2In := RequireMockTask(t, db, nil)
 	a2In := RequireMockAllocation(t, db, t2In.TaskID)
 
@@ -625,22 +635,22 @@ func TestCloseOpenAllocations(t *testing.T) {
 	a2In.State = &terminated
 
 	// Close only a2In open allocations (filter out the rest).
-	err := db.CloseOpenAllocations([]model.AllocationID{a1In.AllocationID})
+	err := CloseOpenAllocations(ctx, []model.AllocationID{a1In.AllocationID})
 	require.NoError(t, err)
 
-	a1, err := db.AllocationByID(a1In.AllocationID)
+	a1, err := AllocationByID(ctx, a1In.AllocationID)
 	require.NoError(t, err)
 	require.Nil(t, a1.EndTime)
 
-	a2, err := db.AllocationByID(a2In.AllocationID)
+	a2, err := AllocationByID(ctx, a2In.AllocationID)
 	require.NoError(t, err)
 	require.NotNil(t, a2.EndTime)
 
 	// Close the rest of the open allocations.
-	err = db.CloseOpenAllocations([]model.AllocationID{})
+	err = CloseOpenAllocations(ctx, []model.AllocationID{})
 	require.NoError(t, err)
 
-	a1, err = db.AllocationByID(a1In.AllocationID)
+	a1, err = AllocationByID(ctx, a1In.AllocationID)
 	require.NoError(t, err)
 	require.NotNil(t, a1.EndTime)
 }

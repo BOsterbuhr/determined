@@ -1,11 +1,10 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/determined-ai/determined/master/internal/api"
 	"github.com/determined-ai/determined/master/pkg/model"
@@ -99,7 +98,7 @@ VALUES
 	}
 
 	if _, err := db.sql.Exec(text.String(), args...); err != nil {
-		return errors.Wrapf(err, "error inserting %d task logs", len(logs))
+		return fmt.Errorf("error inserting %d task logs: %w", len(logs), err)
 	}
 
 	return nil
@@ -107,11 +106,9 @@ VALUES
 
 // DeleteTaskLogs deletes the logs for the given tasks.
 func (db *PgDB) DeleteTaskLogs(ids []model.TaskID) error {
-	if _, err := db.sql.Exec(`
-DELETE FROM task_logs
-WHERE task_id IN (SELECT unnest($1::text [])::text);
-`, ids); err != nil {
-		return errors.Wrapf(err, "error deleting task logs for task %v", ids)
+	if _, err := Bun().NewDelete().Table("task_logs").
+		Where("task_id IN (SELECT unnest(?::text [])::text)", ids).Exec(context.Background()); err != nil {
+		return fmt.Errorf("error deleting task logs for task %v: %w", ids, err)
 	}
 	return nil
 }

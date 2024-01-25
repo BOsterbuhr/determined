@@ -38,6 +38,7 @@ var inferenceMetricGroup = "inference"
 func createTestTrial(
 	t *testing.T, api *apiServer, curUser model.User,
 ) (*model.Trial, *model.Task) {
+	ctx := context.Background()
 	exp := createTestExpWithProjectID(t, api, curUser, 1)
 
 	task := &model.Task{
@@ -46,17 +47,17 @@ func createTestTrial(
 		StartTime:  time.Now(),
 		TaskID:     trialTaskID(exp.ID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, api.m.db.AddTask(task))
+	require.NoError(t, db.AddTask(ctx, task))
 
 	trial := &model.Trial{
 		StartTime:    time.Now(),
 		State:        model.PausedState,
 		ExperimentID: exp.ID,
 	}
-	require.NoError(t, db.AddTrial(context.TODO(), trial, task.TaskID))
+	require.NoError(t, db.AddTrial(ctx, trial, task.TaskID))
 
 	// Return trial exactly the way the API will generally get it.
-	outTrial, err := db.TrialByID(context.TODO(), trial.ID)
+	outTrial, err := db.TrialByID(ctx, trial.ID)
 	require.NoError(t, err)
 	return outTrial, task
 }
@@ -751,7 +752,7 @@ func TestTrialProtoTaskIDs(t *testing.T) {
 		StartTime:  task0.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, api.m.db.AddTask(task1))
+	require.NoError(t, db.AddTask(ctx, task1))
 
 	task2 := &model.Task{
 		TaskType:   model.TaskTypeTrial,
@@ -759,7 +760,7 @@ func TestTrialProtoTaskIDs(t *testing.T) {
 		StartTime:  task1.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, api.m.db.AddTask(task2))
+	require.NoError(t, db.AddTask(ctx, task2))
 
 	_, err = db.Bun().NewInsert().Model(&[]model.TrialTaskID{
 		{TrialID: trial.ID, TaskID: task1.TaskID},
@@ -834,7 +835,7 @@ func TestExperimentIDFromTrialTaskID(t *testing.T) {
 		StartTime:  time.Now(),
 		TaskID:     model.TaskID(uuid.New().String()),
 	}
-	require.NoError(t, api.m.db.AddTask(task))
+	require.NoError(t, db.AddTask(context.Background(), task))
 	_, err = experimentIDFromTrialTaskID(notTrialTask.TaskID)
 	require.ErrorIs(t, err, errIsNotTrialTaskID)
 
@@ -852,7 +853,7 @@ func TestTrialLogsBackported(t *testing.T) {
 		StartTime:  time.Now(),
 		TaskID:     model.TaskID(fmt.Sprintf("backported.%d", exp.ID)),
 	}
-	require.NoError(t, api.m.db.AddTask(task))
+	require.NoError(t, db.AddTask(ctx, task))
 
 	trial := &model.Trial{
 		StartTime:    time.Now(),
@@ -889,7 +890,7 @@ func TestTrialLogs(t *testing.T) {
 		StartTime:  task0.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, api.m.db.AddTask(task1))
+	require.NoError(t, db.AddTask(ctx, task1))
 
 	task2 := &model.Task{
 		TaskType:   model.TaskTypeTrial,
@@ -897,7 +898,7 @@ func TestTrialLogs(t *testing.T) {
 		StartTime:  task1.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, api.m.db.AddTask(task2))
+	require.NoError(t, db.AddTask(ctx, task2))
 
 	_, err := db.Bun().NewInsert().Model(&[]model.TrialTaskID{
 		{TrialID: trial.ID, TaskID: task1.TaskID},
@@ -985,7 +986,7 @@ func TestTrialLogFields(t *testing.T) {
 		StartTime:  task0.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, api.m.db.AddTask(task1))
+	require.NoError(t, db.AddTask(ctx, task1))
 
 	task2 := &model.Task{
 		TaskType:   model.TaskTypeTrial,
@@ -993,7 +994,7 @@ func TestTrialLogFields(t *testing.T) {
 		StartTime:  task1.StartTime.Add(time.Second),
 		TaskID:     trialTaskID(trial.ExperimentID, model.NewRequestID(rand.Reader)),
 	}
-	require.NoError(t, api.m.db.AddTask(task2))
+	require.NoError(t, db.AddTask(ctx, task2))
 
 	_, err := db.Bun().NewInsert().Model(&[]model.TrialTaskID{
 		{TrialID: trial.ID, TaskID: task1.TaskID},
