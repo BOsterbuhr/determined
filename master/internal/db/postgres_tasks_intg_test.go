@@ -424,8 +424,9 @@ func TestAddTask(t *testing.T) {
 }
 
 func TestAddNonExperimentTasksContextDirectory(t *testing.T) {
+	db := MustResolveTestPostgres(t) // will get rid of this w/ bunification
 	ctx := context.Background()
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 	b := []byte(`testing123`)
 
 	err := AddNonExperimentTasksContextDirectory(ctx, tIn.TaskID, b)
@@ -440,7 +441,7 @@ func TestAddNonExperimentTasksContextDirectory(t *testing.T) {
 func TestTaskCompleted(t *testing.T) {
 	ctx := context.Background()
 	db := MustResolveTestPostgres(t)
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 
 	completed, err := TaskCompleted(ctx, tIn.TaskID)
 	require.False(t, completed)
@@ -456,7 +457,7 @@ func TestTaskCompleted(t *testing.T) {
 
 func TestAddAllocation(t *testing.T) {
 	db := MustResolveTestPostgres(t)
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 	a := model.Allocation{
 		AllocationID: model.AllocationID(fmt.Sprintf("%s-1", tIn.TaskID)),
 		TaskID:       tIn.TaskID,
@@ -480,7 +481,7 @@ func TestAddAllocation(t *testing.T) {
 func TestAddAllocationExitStatus(t *testing.T) {
 	db := MustResolveTestPostgres(t)
 
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	statusCode := int32(1)
@@ -504,7 +505,7 @@ func TestAddAllocationExitStatus(t *testing.T) {
 func TestCompleteAllocation(t *testing.T) {
 	db := MustResolveTestPostgres(t)
 
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	aIn.EndTime = ptrs.Ptr(time.Now().UTC())
@@ -520,7 +521,7 @@ func TestCompleteAllocation(t *testing.T) {
 func TestCompleteAllocationTelemetry(t *testing.T) {
 	db := MustResolveTestPostgres(t)
 
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	bytes, err := db.CompleteAllocationTelemetry(aIn.AllocationID)
@@ -533,7 +534,7 @@ func TestCompleteAllocationTelemetry(t *testing.T) {
 func TestAllocationByID(t *testing.T) {
 	db := MustResolveTestPostgres(t)
 
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	a, err := db.AllocationByID(aIn.AllocationID)
@@ -545,7 +546,7 @@ func TestAllocationSessionFlow(t *testing.T) {
 	db := MustResolveTestPostgres(t)
 
 	uIn := RequireMockUser(t, db)
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	tok, err := db.StartAllocationSession(aIn.AllocationID, &uIn)
@@ -575,7 +576,7 @@ func TestAllocationSessionFlow(t *testing.T) {
 
 func TestUpdateAllocation(t *testing.T) {
 	db := MustResolveTestPostgres(t)
-	tIn := RequireMockTask(t)
+	tIn := RequireMockTask(t, db, nil)
 	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	// Testing UpdateAllocation Ports
@@ -614,10 +615,10 @@ func TestCloseOpenAllocations(t *testing.T) {
 	db := MustResolveTestPostgres(t)
 
 	// Create test allocations, with a NULL end time.
-	t1In := RequireMockTask(t)
+	t1In := RequireMockTask(t, db, nil)
 	a1In := RequireMockAllocation(t, db, t1In.TaskID)
 
-	t2In := RequireMockTask(t)
+	t2In := RequireMockTask(t, db, nil)
 	a2In := RequireMockAllocation(t, db, t2In.TaskID)
 
 	// Set status for both open allocation as 'terminated'.
@@ -648,8 +649,8 @@ func TestCloseOpenAllocations(t *testing.T) {
 
 func TestTaskLogsFlow(t *testing.T) {
 	db := MustResolveTestPostgres(t)
-	t1In := RequireMockTask(t)
-	t2In := RequireMockTask(t)
+	t1In := RequireMockTask(t, db, nil)
+	t2In := RequireMockTask(t, db, nil)
 
 	// Test AddTaskLogs & TaskLogCounts
 	taskLog1 := RequireMockTaskLog(t, db, t1In.TaskID, "1")

@@ -28,7 +28,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/determined-ai/determined/master/pkg/archive"
-	"github.com/determined-ai/determined/master/pkg/etc"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/ptrs"
 	"github.com/determined-ai/determined/master/pkg/schemas"
@@ -188,7 +187,7 @@ func RequireMockJob(t *testing.T, db *PgDB, userID *model.UserID) model.JobID {
 
 // RequireMockCommandID creates a mock command and returns a command ID.
 func RequireMockCommandID(t *testing.T, db *PgDB, userID model.UserID) model.TaskID {
-	task := RequireMockTask(t)
+	task := RequireMockTask(t, db, &userID)
 	alloc := RequireMockAllocation(t, db, task.TaskID)
 
 	mockCommand := struct {
@@ -222,7 +221,7 @@ func RequireMockCommandID(t *testing.T, db *PgDB, userID model.UserID) model.Tas
 func RequireMockTensorboardID(
 	t *testing.T, db *PgDB, userID model.UserID, expIDs, trialIDs []int,
 ) model.TaskID {
-	task := RequireMockTask(t)
+	task := RequireMockTask(t, db, &userID)
 	alloc := RequireMockAllocation(t, db, task.TaskID)
 
 	mockTensorboard := struct {
@@ -305,15 +304,8 @@ func RequireGetProjectHParams(t *testing.T, db *PgDB, projectID int) []string {
 }
 
 // RequireMockTask returns a mock task. TODO CAROLINA -- to set up for later.
-func RequireMockTask(t *testing.T) *model.Task {
-	// TODO Carolina -- will get rid of this DB set up once task is bunified.
-	require.NoError(t, etc.SetRootPath(RootFromDB))
-	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-	ctx := context.Background()
-
-	u := RequireMockUser(t, db)
-	jID := RequireMockJob(t, db, &u.ID)
+func RequireMockTask(t *testing.T, db *PgDB, userID *model.UserID) *model.Task {
+	jID := RequireMockJob(t, db, userID)
 
 	// Add a task.
 	tID := model.NewTaskID()
@@ -323,7 +315,7 @@ func RequireMockTask(t *testing.T) *model.Task {
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
-	err := AddTask(ctx, tIn)
+	err := db.AddTask(tIn)
 	require.NoError(t, err, "failed to add task")
 	return tIn
 }
@@ -450,7 +442,7 @@ func ReadTestModelDefiniton(t *testing.T, folderPath string) []byte {
 
 // RequireMockTrial returns a mock trial.
 func RequireMockTrial(t *testing.T, db *PgDB, exp *model.Experiment) (*model.Trial, *model.Task) {
-	task := RequireMockTask(t)
+	task := RequireMockTask(t, db, exp.OwnerID)
 	rqID := model.NewRequestID(rand.Reader)
 	tr := model.Trial{
 		RequestID:    &rqID,

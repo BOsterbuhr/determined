@@ -186,7 +186,7 @@ func TestGracefullyTerminateAfterRestart(t *testing.T) {
 			subq.Put(sproto.ResourcesReleasedEvent{})
 		}
 	})
-	taskModel := db.RequireMockTask(t)
+	taskModel := db.RequireMockTask(t, pgDB, nil)
 
 	t.Log("running allocation")
 	var exitFuture atomic.Pointer[AllocationExited]
@@ -497,7 +497,7 @@ func TestStartError(t *testing.T) {
 	expectedErr := fmt.Errorf("rm crashed")
 	rm.On("Allocate", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	taskModel := db.RequireMockTask(t)
+	taskModel := db.RequireMockTask(t, pgDB, nil)
 	ar := stubAllocateRequest(taskModel)
 	err := DefaultService.StartAllocation(
 		logger.Context{},
@@ -513,7 +513,7 @@ func TestStartError(t *testing.T) {
 func TestRestore(t *testing.T) {
 	pgDB := requireDeps(t)
 
-	restoredTask := db.RequireMockTask(t)
+	restoredTask := db.RequireMockTask(t, pgDB, nil)
 	restoredAr := stubAllocateRequest(restoredTask)
 	restoredAr.Restore = true
 
@@ -551,7 +551,7 @@ func requireStarted(t *testing.T, opts ...func(*sproto.AllocateRequest)) (
 
 	var rm mocks.ResourceManager
 
-	taskModel := db.RequireMockTask(t)
+	taskModel := db.RequireMockTask(t, pgDB, nil)
 
 	var subClosed atomic.Bool
 	q := queue.New[sproto.ResourcesEvent]()

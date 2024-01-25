@@ -366,7 +366,7 @@ func createPrereqs(t *testing.T, pgDB *db.PgDB) (
 	err := pgDB.AddExperiment(experiment, activeConfig)
 	assert.NilError(t, err, "failed to insert experiment")
 
-	task := db.RequireMockTask(t)
+	task := db.RequireMockTask(t, pgDB, experiment.OwnerID)
 	trial := &model.Trial{
 		ExperimentID: experiment.ID,
 		State:        model.ActiveState,
