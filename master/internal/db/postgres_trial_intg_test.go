@@ -801,7 +801,7 @@ func TestUpsertTrialByExternalIDTx(t *testing.T) {
 
 	user := RequireMockUser(t, db)
 	exp := RequireMockExperiment(t, db, user)
-	task := RequireMockTask(t, db, nil)
+	task := RequireMockTask(t, db, exp.OwnerID)
 
 	// Add trial.
 	trial := &model.Trial{
@@ -842,7 +842,7 @@ func TestProtoGetTrial(t *testing.T) {
 	err := db.AddExperiment(exp, activeConfig)
 	require.NoError(t, err, "failed to add experiment")
 
-	task := RequireMockTask(t, db, nil)
+	task := RequireMockTask(t, db, exp.OwnerID)
 	tr := model.Trial{
 		ExperimentID: exp.ID,
 		State:        model.ActiveState,
@@ -890,7 +890,7 @@ func TestAddValidationMetricsDupeCheckpoints(t *testing.T) {
 
 	exp, activeConfig := model.ExperimentModel()
 	require.NoError(t, db.AddExperiment(exp, activeConfig))
-	task := RequireMockTask(t, db, nil)
+	task := RequireMockTask(t, db, exp.OwnerID)
 	tr := model.Trial{
 		ExperimentID: exp.ID,
 		State:        model.ActiveState,
@@ -991,7 +991,7 @@ func TestBatchesProcessedNRollbacks(t *testing.T) {
 
 	exp, activeConfig := model.ExperimentModel()
 	require.NoError(t, db.AddExperiment(exp, activeConfig))
-	task := RequireMockTask(t, db, nil)
+	task := RequireMockTask(t, db, exp.OwnerID)
 	tr := model.Trial{
 		ExperimentID: exp.ID,
 		State:        model.ActiveState,
@@ -1114,7 +1114,7 @@ func TestGenericMetricsIO(t *testing.T) {
 	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 	exp, activeConfig := model.ExperimentModel()
 	require.NoError(t, db.AddExperiment(exp, activeConfig))
-	task := RequireMockTask(t, db, nil)
+	task := RequireMockTask(t, db, exp.OwnerID)
 	tr := model.Trial{
 		ExperimentID: exp.ID,
 		State:        model.ActiveState,
@@ -1243,7 +1243,7 @@ func TestConcurrentMetricUpdate(t *testing.T) {
 	createTrial := func() *model.Trial {
 		exp, activeConfig := model.ExperimentModel()
 		require.NoError(t, db.AddExperiment(exp, activeConfig))
-		task := RequireMockTask(t, db, nil)
+		task := RequireMockTask(t, db, exp.OwnerID)
 		tr := model.Trial{
 			ExperimentID: exp.ID,
 			State:        model.ActiveState,

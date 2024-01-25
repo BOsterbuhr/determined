@@ -303,7 +303,7 @@ func RequireGetProjectHParams(t *testing.T, db *PgDB, projectID int) []string {
 	return p.Hyperparameters
 }
 
-// RequireMockTask returns a mock task. TODO CAROLINA -- to set up for later.
+// RequireMockTask returns a mock task.
 func RequireMockTask(t *testing.T, db *PgDB, userID *model.UserID) *model.Task {
 	jID := RequireMockJob(t, db, userID)
 
