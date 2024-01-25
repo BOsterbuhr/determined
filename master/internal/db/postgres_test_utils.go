@@ -306,22 +306,14 @@ func RequireGetProjectHParams(t *testing.T, db *PgDB, projectID int) []string {
 
 // RequireMockTask returns a mock task. TODO CAROLINA -- to set up for later.
 func RequireMockTask(t *testing.T) *model.Task {
+	// TODO Carolina -- will get rid of this DB set up once task is bunified.
 	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
 	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 	ctx := context.Background()
 
 	u := RequireMockUser(t, db)
-
-	jID := model.NewJobID()
-	jIn := &model.Job{
-		JobID:   jID,
-		JobType: model.JobTypeExperiment,
-		OwnerID: &u.ID,
-		QPos:    decimal.New(0, 0),
-	}
-	err := AddJobTx(ctx, Bun(), jIn)
-	require.NoError(t, err, "failed to add job")
+	jID := RequireMockJob(t, db, &u.ID)
 
 	// Add a task.
 	tID := model.NewTaskID()
@@ -331,7 +323,7 @@ func RequireMockTask(t *testing.T) *model.Task {
 		TaskType:  model.TaskTypeTrial,
 		StartTime: time.Now().UTC().Truncate(time.Millisecond),
 	}
-	err = AddTask(ctx, tIn)
+	err := AddTask(ctx, tIn)
 	require.NoError(t, err, "failed to add task")
 	return tIn
 }

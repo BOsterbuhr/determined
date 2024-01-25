@@ -11,6 +11,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -18,7 +20,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/sirupsen/logrus"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -32,13 +33,33 @@ import (
 	"github.com/determined-ai/determined/proto/pkg/taskv1"
 )
 
+// TestMain sets up the DB for tests that *don't* use the Bun ORM.
+// All other references to `db := MustResolveTestPostgres(t)` will be removed
+// when the tasks module is completely bunified.
+func TestMain(m *testing.M) {
+	db, err := ResolveTestPostgres()
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	err = MigrateTestPostgres(db, "file://../../static/migrations", "up")
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	err = etc.SetRootPath("../../static/srv")
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	os.Exit(m.Run())
+}
+
 // TestJobTaskAndAllocationAPI, in lieu of an ORM, ensures that the mappings into and out of the
 // database are total. We should look into an ORM in the near to medium term future.
 func TestJobTaskAndAllocationAPI(t *testing.T) {
 	ctx := context.Background()
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 
 	// Add a mock user.
 	user := RequireMockUser(t, db)
@@ -173,6 +194,9 @@ func TestRecordAndEndTaskStats(t *testing.T) {
 	require.NoError(t, err)
 
 	require.ElementsMatch(t, expected, actual)
+
+	err = db.EndAllTaskStats()
+	require.NoError(t, err)
 }
 
 func TestNonExperimentTasksContextDirectory(t *testing.T) {
@@ -377,22 +401,9 @@ func TestExhaustiveEnums(t *testing.T) {
 }
 
 func TestAddTask(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
-	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-	ctx := context.Background()
-
+	db := MustResolveTestPostgres(t) // will get rid of this w/ bunification
 	u := RequireMockUser(t, db)
-
-	jID := model.NewJobID()
-	jIn := &model.Job{
-		JobID:   jID,
-		JobType: model.JobTypeExperiment,
-		OwnerID: &u.ID,
-		QPos:    decimal.New(0, 0),
-	}
-	err := AddJobTx(ctx, Bun(), jIn)
-	require.NoError(t, err, "failed to add job")
+	jID := RequireMockJob(t, db, &u.ID)
 
 	// Add a task.
 	tID := model.NewTaskID()
@@ -403,356 +414,300 @@ func TestAddTask(t *testing.T) {
 		StartTime:  time.Now().UTC().Truncate(time.Millisecond),
 		LogVersion: model.TaskLogVersion0,
 	}
-	err = AddTask(context.Background(), tIn)
+	err := AddTask(context.Background(), tIn)
 	require.NoError(t, err, "failed to add task")
-}
 
-func TestTaskByID(t *testing.T) {
-	mockT := mockTask(t)
-
-	task, err := TaskByID(context.Background(), mockT.TaskID)
+	// Check that task is added to the db & test TaskByID.
+	task, err := TaskByID(context.Background(), tIn.TaskID)
 	require.NoError(t, err)
-	require.Equal(t, mockT, task)
+	require.Equal(t, tIn, task)
 }
 
 func TestAddNonExperimentTasksContextDirectory(t *testing.T) {
 	ctx := context.Background()
-	mockT := mockTask(t)
+	tIn := RequireMockTask(t)
 	b := []byte(`testing123`)
 
-	err := AddNonExperimentTasksContextDirectory(ctx, mockT.TaskID, b)
+	err := AddNonExperimentTasksContextDirectory(ctx, tIn.TaskID, b)
 	require.NoError(t, err)
 
 	var taskCtxDir model.TaskContextDirectory
-	err = Bun().NewSelect().Model(&taskCtxDir).Where("task_id = ?", mockT.TaskID).Scan(ctx, &taskCtxDir)
+	err = Bun().NewSelect().Model(&taskCtxDir).Where("task_id = ?", tIn.TaskID).Scan(ctx, &taskCtxDir)
 	require.NoError(t, err)
 	require.Equal(t, b, taskCtxDir.ContextDirectory)
 }
 
 func TestTaskCompleted(t *testing.T) {
 	ctx := context.Background()
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
+	tIn := RequireMockTask(t)
 
-	mockT := mockTask(t)
-
-	completed, err := TaskCompleted(ctx, mockT.TaskID)
+	completed, err := TaskCompleted(ctx, tIn.TaskID)
 	require.False(t, completed)
 	require.NoError(t, err)
 
-	err = db.CompleteTask(mockT.TaskID, time.Now().UTC().Truncate(time.Millisecond))
+	err = db.CompleteTask(tIn.TaskID, time.Now().UTC().Truncate(time.Millisecond))
 	require.NoError(t, err)
 
-	completed, err = TaskCompleted(ctx, mockT.TaskID)
+	completed, err = TaskCompleted(ctx, tIn.TaskID)
 	require.True(t, completed)
 	require.NoError(t, err)
 }
 
 func TestAddAllocation(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-
-	mockT := mockTask(t)
-
+	tIn := RequireMockTask(t)
 	a := model.Allocation{
-		AllocationID: model.AllocationID(fmt.Sprintf("%s-1", mockT.TaskID)),
-		TaskID:       mockT.TaskID,
+		AllocationID: model.AllocationID(fmt.Sprintf("%s-1", tIn.TaskID)),
+		TaskID:       tIn.TaskID,
 		StartTime:    ptrs.Ptr(time.Now().UTC()),
 		State:        ptrs.Ptr(model.AllocationStateTerminated),
 	}
+
 	err := db.AddAllocation(&a)
 	require.NoError(t, err, "failed to add allocation")
 
-	logrus.Debugf("%s", Bun().NewSelect().Table("allocations"))
-
-	var tmp model.Allocation
+	var res model.Allocation
 	err = Bun().NewSelect().Table("allocations").Where("allocation_id = ?", string(a.AllocationID)).
-		Scan(context.Background(), &tmp)
+		Scan(context.Background(), &res)
 	require.NoError(t, err)
-	require.Equal(t, a.AllocationID, tmp.AllocationID)
-	require.Equal(t, a.TaskID, tmp.TaskID)
-	require.Equal(t, a.StartTime, tmp.StartTime)
-	require.Equal(t, a.State, tmp.State)
+	require.Equal(t, a.AllocationID, res.AllocationID)
+	require.Equal(t, a.TaskID, res.TaskID)
+	require.Equal(t, a.StartTime, res.StartTime)
+	require.Equal(t, a.State, res.State)
 }
 
 func TestAddAllocationExitStatus(t *testing.T) {
-	mockT := mockTask(t)
-	mockA := mockAllocation(t, mockT.TaskID)
+	db := MustResolveTestPostgres(t)
+
+	tIn := RequireMockTask(t)
+	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	statusCode := int32(1)
 	exitReason := "testing-exit-reason"
 	exitErr := "testing-exit-err"
 
-	mockA.ExitReason = &exitReason
-	mockA.ExitErr = &exitErr
-	mockA.StatusCode = &statusCode
+	aIn.ExitReason = &exitReason
+	aIn.ExitErr = &exitErr
+	aIn.StatusCode = &statusCode
 
-	err := AddAllocationExitStatus(context.Background(), mockA)
+	err := AddAllocationExitStatus(context.Background(), aIn)
 	require.NoError(t, err)
 
-	alloc := getAllocationByID(t, mockA.AllocationID)
-	require.Equal(t, mockA.ExitErr, alloc.ExitErr)
-	require.Equal(t, mockA.ExitReason, alloc.ExitReason)
-	require.Equal(t, mockA.StatusCode, alloc.StatusCode)
+	res, err := db.AllocationByID(aIn.AllocationID)
+	require.NoError(t, err)
+	require.Equal(t, aIn.ExitErr, res.ExitErr)
+	require.Equal(t, aIn.ExitReason, res.ExitReason)
+	require.Equal(t, aIn.StatusCode, res.StatusCode)
 }
 
 func TestCompleteAllocation(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 
-	mockT := mockTask(t)
-	mockA := mockAllocation(t, mockT.TaskID)
+	tIn := RequireMockTask(t)
+	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
-	mockA.EndTime = ptrs.Ptr(time.Now().UTC())
+	aIn.EndTime = ptrs.Ptr(time.Now().UTC())
 
-	err := db.CompleteAllocation(mockA)
+	err := db.CompleteAllocation(aIn)
 	require.NoError(t, err)
 
-	alloc := getAllocationByID(t, mockA.AllocationID)
-	require.Equal(t, mockA.EndTime, alloc.EndTime)
+	res, err := db.AllocationByID(aIn.AllocationID)
+	require.NoError(t, err)
+	require.Equal(t, aIn.EndTime, res.EndTime)
 }
 
 func TestCompleteAllocationTelemetry(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 
-	mockT := mockTask(t)
-	mockA := mockAllocation(t, mockT.TaskID)
+	tIn := RequireMockTask(t)
+	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
-	err := db.AddAllocation(mockA)
-	require.NoError(t, err, "failed to add allocation")
-	bytes, err := db.CompleteAllocationTelemetry(mockA.AllocationID)
+	bytes, err := db.CompleteAllocationTelemetry(aIn.AllocationID)
 	require.NoError(t, err)
-	require.Contains(t, string(bytes), string(mockA.AllocationID))
-	require.Contains(t, string(bytes), string(*mockT.JobID))
-	require.Contains(t, string(bytes), string(mockT.TaskType))
+	require.Contains(t, string(bytes), string(aIn.AllocationID))
+	require.Contains(t, string(bytes), string(*tIn.JobID))
+	require.Contains(t, string(bytes), string(tIn.TaskType))
 }
 
 func TestAllocationByID(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 
-	mockT := RequireMockTask(t)
-	mockA := RequireMockAllocation(t, db, mockT.TaskID)
+	tIn := RequireMockTask(t)
+	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
-	a, err := db.AllocationByID(mockA.AllocationID)
+	a, err := db.AllocationByID(aIn.AllocationID)
 	require.NoError(t, err)
-	require.Equal(t, mockA, a)
+	require.Equal(t, aIn, a)
 }
 
 func TestAllocationSessionFlow(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 
-	mockU := RequireMockUser(t, db)
-	mockT := RequireMockTask(t)
-	mockA := RequireMockAllocation(t, db, mockT.TaskID)
+	uIn := RequireMockUser(t, db)
+	tIn := RequireMockTask(t)
+	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
-	tok, err := db.StartAllocationSession(mockA.AllocationID, &mockU)
+	tok, err := db.StartAllocationSession(aIn.AllocationID, &uIn)
 	require.NoError(t, err)
 	require.NotNil(t, tok)
 
-	alloc := getAllocationByID(t, mockA.AllocationID)
-	require.Equal(t, mockA, alloc)
+	as, err := allocationSessionByID(t, aIn.AllocationID)
+	require.NoError(t, err)
+	require.Equal(t, uIn.ID, *as.OwnerID)
 
-	running := model.AllocationStateRunning
-	mockA.State = &running
-	err = db.UpdateAllocationState(*mockA)
+	running := model.AllocationStatePulling
+	aIn.State = &running
+	err = db.UpdateAllocationState(*aIn)
 	require.NoError(t, err)
 
-	alloc = getAllocationByID(t, mockA.AllocationID)
-	require.Equal(t, mockA.State, alloc.State)
-
-	err = db.DeleteAllocationSession(mockA.AllocationID)
+	a, err := db.AllocationByID(aIn.AllocationID)
 	require.NoError(t, err)
+	require.Equal(t, aIn.State, a.State)
+
+	err = db.DeleteAllocationSession(aIn.AllocationID)
+	require.NoError(t, err)
+
+	as, err = allocationSessionByID(t, aIn.AllocationID)
+	require.ErrorContains(t, err, "no rows in result set")
+	require.Nil(t, as)
 }
 
 func TestUpdateAllocation(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-
-	mockT := RequireMockTask(t)
-	mockA := RequireMockAllocation(t, db, mockT.TaskID)
+	tIn := RequireMockTask(t)
+	aIn := RequireMockAllocation(t, db, tIn.TaskID)
 
 	// Testing UpdateAllocation Ports
-	mockA.Ports = map[string]int{"abc": 123, "def": 456}
-
-	err := UpdateAllocationPorts(*mockA)
+	aIn.Ports = map[string]int{"abc": 123, "def": 456}
+	err := UpdateAllocationPorts(*aIn)
 	require.NoError(t, err)
 
-	alloc := getAllocationByID(t, mockA.AllocationID)
-	require.Equal(t, mockA.Ports, alloc.Ports)
+	a, err := db.AllocationByID(aIn.AllocationID)
+	require.NoError(t, err)
+	require.Equal(t, aIn.Ports, a.Ports)
 
 	// Testing UpdateAllocationStartTime
 	newStartTime := ptrs.Ptr(time.Now().UTC())
-	mockA.StartTime = newStartTime
+	aIn.StartTime = newStartTime
 
-	err = db.UpdateAllocationStartTime(*mockA)
+	err = db.UpdateAllocationStartTime(*aIn)
 	require.NoError(t, err)
 
-	alloc = getAllocationByID(t, mockA.AllocationID)
-	require.Equal(t, mockA.StartTime, alloc.StartTime)
+	a, err = db.AllocationByID(aIn.AllocationID)
+	require.NoError(t, err)
+	require.Equal(t, aIn.StartTime, a.StartTime)
 
 	// Testing UpdateAllocationProxyAddress
 	proxyAddr := "here"
-	mockA.ProxyAddress = &proxyAddr
+	aIn.ProxyAddress = &proxyAddr
 
-	err = db.UpdateAllocationProxyAddress(*mockA)
+	err = db.UpdateAllocationProxyAddress(*aIn)
 	require.NoError(t, err)
 
-	alloc = getAllocationByID(t, mockA.AllocationID)
-	require.Equal(t, mockA.ProxyAddress, alloc.ProxyAddress)
+	a, err = db.AllocationByID(aIn.AllocationID)
+	require.NoError(t, err)
+	require.Equal(t, aIn.ProxyAddress, a.ProxyAddress)
 }
 
 func TestCloseOpenAllocations(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
 
-	mockT := mockTask(t)
-	mockA1 := mockAllocation(t, mockT.TaskID)
-	mockA2 := mockAllocation(t, mockT.TaskID)
+	// Create test allocations, with a NULL end time.
+	t1In := RequireMockTask(t)
+	a1In := RequireMockAllocation(t, db, t1In.TaskID)
 
+	t2In := RequireMockTask(t)
+	a2In := RequireMockAllocation(t, db, t2In.TaskID)
+
+	// Set status for both open allocation as 'terminated'.
 	terminated := model.AllocationStateTerminated
+	a1In.State = &terminated
+	a2In.State = &terminated
 
-	mockA2.State = &terminated
-	mockA2.State = &terminated
-
-	err := db.CloseOpenAllocations([]model.AllocationID{mockA1.AllocationID})
+	// Close only a2In open allocations (filter out the rest).
+	err := db.CloseOpenAllocations([]model.AllocationID{a1In.AllocationID})
 	require.NoError(t, err)
 
-	alloc1 := getAllocationByID(t, mockA1.AllocationID)
-	require.Nil(t, alloc1.EndTime)
+	a1, err := db.AllocationByID(a1In.AllocationID)
+	require.NoError(t, err)
+	require.Nil(t, a1.EndTime)
 
-	alloc2 := getAllocationByID(t, mockA2.AllocationID)
-	logrus.Debugf("ALLOCATION 2: %v", alloc2)
-	require.NotNil(t, alloc2.EndTime)
+	a2, err := db.AllocationByID(a2In.AllocationID)
+	require.NoError(t, err)
+	require.NotNil(t, a2.EndTime)
 
+	// Close the rest of the open allocations.
 	err = db.CloseOpenAllocations([]model.AllocationID{})
 	require.NoError(t, err)
 
-	alloc1 = getAllocationByID(t, mockA1.AllocationID)
-	require.NotNil(t, alloc1.EndTime)
-
-	alloc2 = getAllocationByID(t, mockA2.AllocationID)
-	require.NotNil(t, alloc2.EndTime)
+	a1, err = db.AllocationByID(a1In.AllocationID)
+	require.NoError(t, err)
+	require.NotNil(t, a1.EndTime)
 }
 
 func TestTaskLogsFlow(t *testing.T) {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
 	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-
-	mockT1 := mockTask(t)
-	mockT2 := mockTask(t)
+	t1In := RequireMockTask(t)
+	t2In := RequireMockTask(t)
 
 	// Test AddTaskLogs & TaskLogCounts
-	taskLog1 := RequireMockTaskLog(t, mockT1.TaskID, "1")
-	taskLog2 := RequireMockTaskLog(t, mockT1.TaskID, "2")
-	taskLog3 := RequireMockTaskLog(t, mockT2.TaskID, "3")
+	taskLog1 := RequireMockTaskLog(t, db, t1In.TaskID, "1")
+	taskLog2 := RequireMockTaskLog(t, db, t1In.TaskID, "2")
+	taskLog3 := RequireMockTaskLog(t, db, t2In.TaskID, "3")
 
+	// Try adding only taskLog1, and count only 1 log.
 	err := db.AddTaskLogs([]*model.TaskLog{taskLog1})
 	require.NoError(t, err)
 
-	count, err := db.TaskLogsCount(mockT1.TaskID, []api.Filter{})
+	count, err := db.TaskLogsCount(t1In.TaskID, []api.Filter{})
 	require.NoError(t, err)
 	require.Equal(t, count, 1)
 
+	// Try adding the rest of the Task logs, and count 2 for t1In.TaskID, and 1 for t2In.TaskID
 	err = db.AddTaskLogs([]*model.TaskLog{taskLog2, taskLog3})
 	require.NoError(t, err)
 
-	count, err = db.TaskLogsCount(mockT1.TaskID, []api.Filter{})
+	count, err = db.TaskLogsCount(t1In.TaskID, []api.Filter{})
 	require.NoError(t, err)
 	require.Equal(t, count, 2)
 
+	count, err = db.TaskLogsCount(t2In.TaskID, []api.Filter{})
+	require.NoError(t, err)
+	require.Equal(t, count, 1)
+
+	// Test TaskLogsFields.
+	resp, err := db.TaskLogsFields(t1In.TaskID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, resp.AgentIds, []string{"testing-agent-1", "testing-agent-2"})
+	require.ElementsMatch(t, resp.ContainerIds, []string{"1", "2"})
+
 	// Test TaskLogs.
-	logs, _, err := db.TaskLogs(mockT1.TaskID, 1, []api.Filter{}, apiv1.OrderBy_ORDER_BY_UNSPECIFIED, nil)
+	// Get 1 task log matching t1In task ID.
+	logs, _, err := db.TaskLogs(t1In.TaskID, 1, []api.Filter{}, apiv1.OrderBy_ORDER_BY_UNSPECIFIED, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(logs))
-	require.Equal(t, logs[0].TaskID, string(mockT1.TaskID))
+	require.Equal(t, logs[0].TaskID, string(t1In.TaskID))
 	require.Contains(t, []string{"1", "2"}, *logs[0].ContainerID)
 
-	logs, _, err = db.TaskLogs(mockT1.TaskID, 5, []api.Filter{}, apiv1.OrderBy_ORDER_BY_UNSPECIFIED, nil)
+	// Get up to 5 tasks matching t2In task ID -- receive only 2.
+	logs, _, err = db.TaskLogs(t1In.TaskID, 5, []api.Filter{}, apiv1.OrderBy_ORDER_BY_UNSPECIFIED, nil)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(logs))
 
 	// Test DeleteTaskLogs.
-	err = db.DeleteTaskLogs([]model.TaskID{mockT2.TaskID})
+	err = db.DeleteTaskLogs([]model.TaskID{t2In.TaskID})
 	require.NoError(t, err)
 
-	count, err = db.TaskLogsCount(mockT2.TaskID, []api.Filter{})
+	count, err = db.TaskLogsCount(t2In.TaskID, []api.Filter{})
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 }
 
-// TODO CAROLINA: write tests for EndAllTaskStats & TaskLogsFields
+// TODO CAROLINA: write tests for EndAllTaskStats
 
-// mockTask returns a mock task.
-func mockTask(t *testing.T) *model.Task {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
-	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-	ctx := context.Background()
-
-	u := RequireMockUser(t, db)
-
-	jID := model.NewJobID()
-	jIn := &model.Job{
-		JobID:   jID,
-		JobType: model.JobTypeExperiment,
-		OwnerID: &u.ID,
-		QPos:    decimal.New(0, 0),
-	}
-	err := AddJobTx(ctx, Bun(), jIn)
-	require.NoError(t, err, "failed to add job")
-
-	// Add a task.
-	tID := model.NewTaskID()
-	tIn := &model.Task{
-		TaskID:     tID,
-		JobID:      &jID,
-		TaskType:   model.TaskTypeTrial,
-		StartTime:  time.Now().UTC().Truncate(time.Millisecond),
-		LogVersion: model.TaskLogVersion0,
-	}
-	err = AddTask(context.Background(), tIn)
-	require.NoError(t, err, "failed to add task")
-	return tIn
-}
-
-func mockAllocation(t *testing.T, tID model.TaskID) *model.Allocation {
-	require.NoError(t, etc.SetRootPath(RootFromDB))
-	db := MustResolveTestPostgres(t)
-	MustMigrateTestPostgres(t, db, MigrationsFromDB)
-
-	a := model.Allocation{
-		AllocationID: model.AllocationID(fmt.Sprintf("%s-%s", tID, uuid.NewString())),
-		TaskID:       tID,
-		StartTime:    ptrs.Ptr(time.Now().UTC()),
-		State:        ptrs.Ptr(model.AllocationStateTerminated),
-	}
-	err := db.AddAllocation(&a)
-	require.NoError(t, err, "failed to add allocation")
-	return &a
-}
-
-func getAllocationByID(t *testing.T, aID model.AllocationID) *model.Allocation {
-	var alloc model.Allocation
-	err := Bun().NewSelect().Table("allocations").
-		Where("allocation_id = ?", aID).Scan(context.Background(), &alloc)
-	require.NoError(t, err)
-	return &alloc
-}
-
-func RequireMockTaskLog(t *testing.T, tID model.TaskID, suffix string) *model.TaskLog {
-	mockA := mockAllocation(t, tID)
+func RequireMockTaskLog(t *testing.T, db *PgDB, tID model.TaskID, suffix string) *model.TaskLog {
+	mockA := RequireMockAllocation(t, db, tID)
 	agentID := fmt.Sprintf("testing-agent-%s", suffix)
 	containerID := suffix
 	log := &model.TaskLog{
@@ -763,4 +718,14 @@ func RequireMockTaskLog(t *testing.T, tID model.TaskID, suffix string) *model.Ta
 		ContainerID:  &containerID,
 	}
 	return log
+}
+
+func allocationSessionByID(t *testing.T, aID model.AllocationID) (*model.AllocationSession, error) {
+	var res model.AllocationSession
+	if err := Bun().NewSelect().Table("allocation_sessions").
+		Where("allocation_id = ?", aID).Scan(context.Background(), &res); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }
