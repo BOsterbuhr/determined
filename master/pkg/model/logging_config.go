@@ -19,12 +19,6 @@ type LoggingConfig struct {
 	ElasticLoggingConfig *ElasticLoggingConfig `union:"type,elastic" json:"-"`
 }
 
-// LoggingConfigPolicy includes a LoggingConfig and LogRetentionPolicy.
-type LoggingConfigPolicy struct {
-	LoggingConfig
-	Retention *LogRetentionPolicy `json:"retention"`
-}
-
 // LogRetentionPolicy configures the default log retention policy for trials and tasks.
 type LogRetentionPolicy struct {
 	// Days is the default number of days to retain logs for.
@@ -58,21 +52,6 @@ func (c *LoggingConfig) UnmarshalJSON(data []byte) error {
 
 	type DefaultParser *LoggingConfig
 	return errors.Wrap(json.Unmarshal(data, DefaultParser(c)), "failed to parse logging options")
-}
-
-// MarshalJSON serializes LogRetentionPolicy.
-func (p LogRetentionPolicy) MarshalJSON() ([]byte, error) {
-	return union.Marshal(p)
-}
-
-// UnmarshalJSON deserializes LogRetentionPolicy.
-func (p *LogRetentionPolicy) UnmarshalJSON(data []byte) error {
-	if err := union.Unmarshal(data, p); err != nil {
-		return err
-	}
-
-	type DefaultParser *LogRetentionPolicy
-	return errors.Wrap(json.Unmarshal(data, DefaultParser(p)), "failed to parse logging options")
 }
 
 // DefaultLoggingConfig configures logging for tasks using HTTP to the master.

@@ -49,9 +49,10 @@ stages:
         log:
           level: debug
         logging:
-          retention:
-            days: 1
-            schedule: 1m
+          type: default
+        logging_retention:
+          days: 1
+          schedule: 1m
         enable_cors: true
         observability:
           enable_prometheus: true

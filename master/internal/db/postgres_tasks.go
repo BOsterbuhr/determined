@@ -438,28 +438,6 @@ WHERE task_id = $1
 	return count, nil
 }
 
-// DeleteExpiredTaskLogs deletes task logs older than the log_retention_days time where defined and
-// non-negative. If log_retention is not defined the defaultLogRetention value is used instead.
-func (db *PgDB) DeleteExpiredTaskLogs(defaultLogRetentionDays int16) (int64, error) {
-	r, err := db.sql.Exec(fmt.Sprintf(`
-WITH log_retention_tasks AS (
-	SELECT task_id, end_time, COALESCE(log_retention_days, %d) AS current_retention_days FROM tasks
-	WHERE task_id IN (SELECT DISTINCT task_id FROM task_logs)
-		AND end_time IS NOT NULL
-)
-DELETE FROM task_logs
-WHERE task_id IN (
-	SELECT task_id FROM log_retention_tasks
-	WHERE current_retention_days >= 0
-		AND end_time < ( current_timestamp - make_interval(days => current_retention_days) )
-)
-`, defaultLogRetentionDays))
-	if err != nil {
-		return 0, errors.Wrap(err, "error deleting expired task logs")
-	}
-	return r.RowsAffected()
-}
-
 // RecordTaskStats record stats for tasks.
 func (db *PgDB) RecordTaskStats(stats *model.TaskStats) error {
 	return RecordTaskStatsBun(stats)

@@ -16,6 +16,7 @@ import (
 	"github.com/determined-ai/determined/master/internal/cluster"
 	"github.com/determined-ai/determined/master/internal/config"
 	"github.com/determined-ai/determined/master/internal/grpcutil"
+	"github.com/determined-ai/determined/master/internal/logretention"
 	"github.com/determined-ai/determined/master/internal/plugin/sso"
 	"github.com/determined-ai/determined/master/pkg/logger"
 	"github.com/determined-ai/determined/master/version"
@@ -248,12 +249,7 @@ func (a *apiServer) CleanupLogs(
 		return nil, permErr
 	}
 
-	var defaultLogRetentionDays int16 = -1
-	if a.m.taskSpec.LogRetentionDays != nil {
-		defaultLogRetentionDays = *a.m.taskSpec.LogRetentionDays
-	}
-
 	resp := &apiv1.CleanupLogsResponse{}
-	resp.RemovedCount, err = a.m.db.DeleteExpiredTaskLogs(defaultLogRetentionDays)
+	resp.RemovedCount, err = logretention.DeleteExpiredTaskLogs(a.m.taskSpec.LogRetentionDays)
 	return resp, err
 }
