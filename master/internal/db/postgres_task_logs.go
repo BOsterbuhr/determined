@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -130,4 +131,19 @@ WHERE task_id = $1
 		return 0, err
 	}
 	return count, nil
+}
+
+// TaskLogsFields returns the unique fields that can be filtered on for the given task.
+func (db *PgDB) TaskLogsFields(taskID model.TaskID) (*apiv1.TaskLogsFieldsResponse, error) {
+	var fields apiv1.TaskLogsFieldsResponse
+	err := db.QueryProto("get_task_logs_fields", &fields, taskID)
+	return &fields, err
+}
+
+// MaxTerminationDelay is the max delay before a consumer can be sure all logs have been recevied.
+// For Postgres, we don't need to wait very long at all; this was a hypothetical cap on fluent
+// to DB latency prior to fluent's deprecation.	// to DB latency prior to fluent's deprecation.
+func (db *PgDB) MaxTerminationDelay() time.Duration {
+	// TODO: K8s logs can take a bit to get to us, so much so we should investigate.
+	return 5 * time.Second
 }
