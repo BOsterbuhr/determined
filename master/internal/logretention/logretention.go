@@ -29,15 +29,16 @@ func init() {
 }
 
 // SetupScheduler creates a new scheduler with the provided options.
+// Should only be called by init() or test functions, and will panic on error.
 func SetupScheduler(opts ...gocron.SchedulerOption) {
 	schedulerOpts := append([]gocron.SchedulerOption{}, schedulerDefaultOpts...)
 	schedulerOpts = append(schedulerOpts, opts...)
 
-	var err error
-	scheduler, err = gocron.NewScheduler(schedulerOpts...)
+	newScheduler, err := gocron.NewScheduler(schedulerOpts...)
 	if err != nil {
 		panic(errors.Wrapf(err, "failed to create logretention scheduler"))
 	}
+	scheduler = newScheduler
 }
 
 // Schedule begins a log deletion schedule according to the provided LogRetentionPolicy.
