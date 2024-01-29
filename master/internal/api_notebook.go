@@ -21,7 +21,6 @@ import (
 	"github.com/determined-ai/determined/master/internal/command"
 	"github.com/determined-ai/determined/master/internal/db"
 	"github.com/determined-ai/determined/master/internal/grpcutil"
-	"github.com/determined-ai/determined/master/internal/proxy"
 	"github.com/determined-ai/determined/master/internal/rbac/audit"
 	"github.com/determined-ai/determined/master/internal/task/idle"
 	"github.com/determined-ai/determined/master/pkg/archive"
@@ -45,8 +44,6 @@ const (
 	jupyterRuntimeDir = "/run/determined/jupyter/runtime"
 	jupyterEntrypoint = "/run/determined/jupyter/notebook-entrypoint.sh"
 	jupyterIdleCheck  = "/run/determined/jupyter/check_idle.py"
-	jupyterCertPath   = "/run/determined/jupyter/jupyterCert.pem"
-	jupyterKeyPath    = "/run/determined/jupyter/jupyterKey.key"
 	// Agent ports 2600 - 3500 are split between TensorBoards, Notebooks, and Shells.
 	minNotebookPort     = 2900
 	maxNotebookPort     = minNotebookPort + 299
@@ -246,13 +243,8 @@ func (a *apiServer) LaunchNotebook(
 		return nil, err
 	}
 
-	notebookKey, notebookCert, err := proxy.GenSignedCert()
-	if err != nil {
-		return nil, err
-	}
-
-	launchReq.Spec.WatchProxyIdleTimeout = true
-	launchReq.Spec.WatchRunnerIdleTimeout = true
+	spec.WatchProxyIdleTimeout = true
+	spec.WatchRunnerIdleTimeout = true
 
 	// Postprocess the launchReq.Spec.
 	if launchReq.Spec.Config.IdleTimeout == nil && a.m.config.NotebookTimeout != nil {
@@ -331,18 +323,6 @@ func (a *apiServer) LaunchNotebook(
 			notebookDefaultPage,
 			etc.MustStaticFile(etc.NotebookTemplateResource),
 			0o644,
-			tar.TypeReg,
-		),
-		launchReq.Spec.Base.AgentUserGroup.OwnedArchiveItem(
-			jupyterKeyPath,
-			notebookKey,
-			0o600,
-			tar.TypeReg,
-		),
-		launchReq.Spec.Base.AgentUserGroup.OwnedArchiveItem(
-			jupyterCertPath,
-			notebookCert,
-			0o600,
 			tar.TypeReg,
 		),
 	}

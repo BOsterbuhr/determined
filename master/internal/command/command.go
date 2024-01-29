@@ -146,28 +146,29 @@ func (c *Command) Start(ctx context.Context) error {
 		}
 	}
 
-	err := task.DefaultService.StartAllocation(c.logCtx,
-		sproto.AllocateRequest{
-			AllocationID:        c.allocationID,
-			TaskID:              c.taskID,
-			JobID:               c.jobID,
-			JobSubmissionTime:   c.registeredTime,
-			IsUserVisible:       true,
-			Name:                c.Config.Description,
-			SlotsNeeded:         c.Config.Resources.Slots,
-			ResourcePool:        c.Config.Resources.ResourcePool,
-			FittingRequirements: sproto.FittingRequirements{SingleAgent: true},
-			ProxyPorts:          sproto.NewProxyPortConfig(c.GenericCommandSpec.ProxyPorts(), c.taskID),
-			IdleTimeout:         idleWatcherConfig,
-			Restore:             c.restored,
-			ProxyTLS:            c.TaskType == model.TaskTypeNotebook,
-		}, c.db, c.rm, c.GenericCommandSpec, c.OnExit)
-	if err != nil {
-		return err
-	}
+	allocation := task.NewAllocation(c.logCtx, sproto.AllocateRequest{
+		AllocationID:      c.allocationID,
+		TaskID:            c.taskID,
+		JobID:             c.jobID,
+		JobSubmissionTime: c.registeredTime,
+		IsUserVisible:     true,
+		Name:              c.Config.Description,
+		AllocationRef:     ctx.Self(),
+		Group:             ctx.Self(),
 
-	// Once the command is persisted to the dbs & allocation starts, register it with the local job service.
-	jobservice.DefaultService.RegisterJob(c.jobID, c)
+		SlotsNeeded:  c.Config.Resources.Slots,
+		ResourcePool: c.Config.Resources.ResourcePool,
+		FittingRequirements: sproto.FittingRequirements{
+			SingleAgent: true,
+		},
+
+		ProxyPorts:  sproto.NewProxyPortConfig(c.GenericCommandSpec.ProxyPorts(), c.taskID),
+		IdleTimeout: idleWatcherConfig,
+		Restore:     c.restored,
+	}, c.db, c.rm, c.GenericCommandSpec)
+	c.allocation, _ = ctx.ActorOf(c.allocationID, allocation)
+
+	jobservice.Default.RegisterJob(c.jobID, ctx.Self())
 
 	if err := c.persist(); err != nil {
 		c.syslog.WithError(err).Warnf("command persist failure")

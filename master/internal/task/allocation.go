@@ -1071,12 +1071,8 @@ func (a *allocation) registerProxies(addresses []cproto.Address) {
 		// We are keying on allocation id instead of container id. Revisit this when we need to
 		// proxy multi-container tasks or when containers are created prior to being
 		// assigned to an agent.
-		urlScheme := "http"
-		if a.req.ProxyTLS {
-			urlScheme = "https"
-		}
 		proxy.DefaultProxy.Register(pcfg.ServiceID, &url.URL{
-			Scheme: urlScheme,
+			Scheme: "http",
 			Host:   fmt.Sprintf("%s:%d", address.HostIP, address.HostPort),
 		}, pcfg.ProxyTCP, pcfg.Unauthenticated)
 		a.syslog.Debugf("registered proxy id: %s, tcp: %v\n", pcfg.ServiceID, pcfg.ProxyTCP)

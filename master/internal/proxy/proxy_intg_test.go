@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package proxy
 
 import (
@@ -13,9 +10,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/determined-ai/determined/master/internal/db"
-	"github.com/determined-ai/determined/master/pkg/etc"
 )
 
 var (
@@ -72,10 +66,6 @@ func conditionServerUp() bool {
 }
 
 func TestProxyLifecycle(t *testing.T) {
-	pgDB := db.MustResolveTestPostgres(t)
-	db.MustMigrateTestPostgres(t, pgDB, "file://../../static/migrations")
-	require.NoError(t, etc.SetRootPath("../../static/srv"))
-
 	cases := []struct {
 		name                 string
 		proxyTCP             bool
@@ -141,9 +131,6 @@ func TestProxyLifecycle(t *testing.T) {
 }
 
 func TestNewProxyHandler(t *testing.T) {
-	pgDB := db.MustResolveTestPostgres(t)
-	db.MustMigrateTestPostgres(t, pgDB, "file://../../static/migrations")
-	require.NoError(t, etc.SetRootPath("../../static/srv"))
 	// First init the new Proxy
 	InitProxy(proxyAuth)
 	// And check that the Proxy struct is set up correctly
